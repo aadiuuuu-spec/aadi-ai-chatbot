@@ -26,11 +26,13 @@ async def get_telegram_app():
 
 
 @app.get("/")
+@app.get("/api")
 async def health():
     return {"ok": True, "service": "Aadi Telegram webhook"}
 
 
 @app.post("/")
+@app.post("/api")
 async def telegram_webhook(
     request: Request,
     x_telegram_bot_api_secret_token: str = Header(default=""),
@@ -56,6 +58,7 @@ async def telegram_webhook(
 
 
 @app.post("/setup")
+@app.post("/api/setup")
 async def setup_webhook(
     x_setup_secret: str = Header(default=""),
 ):
