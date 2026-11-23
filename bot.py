@@ -16,7 +16,8 @@ MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 VISION_MODEL = os.getenv("VISION_MODEL", "meta-llama/llama-4-scout-17b-16e-instruct")
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 DB_PATH = os.getenv("DB_PATH", "data/aadi.sqlite3")
-OWNER_ID = int(os.getenv("OWNER_ID", "7158334378"))
+OWNER_IDS = {int(x.strip()) for x in os.getenv("OWNER_IDS", "7158334378,8130171971").split(",") if x.strip().isdigit()}
+OWNER_ID = 7158334378  # legacy primary-owner reference
 OWNER_USERNAME = "@II_YUTA_II"
 BOT_USERNAME = os.getenv("BOT_USERNAME", "Disha_chat_bot").lstrip("@")
 BOT_NAME = "Disha"
@@ -293,7 +294,7 @@ async def auto_reaction(bot,kind,cid,reply_id):
     await sticker(bot,kind,cid,reply_id)
 
 async def add_sticker(update,ctx):
-    if update.effective_user.id!=OWNER_ID: return await update.message.reply_text("⛔ Owner only.")
+    if update.effective_user.id not in OWNER_IDS: return await update.message.reply_text("⛔ Owner only.")
     cmd=update.message.text.split()[0].lstrip("/").split("@")[0].lower(); reply=update.message.reply_to_message
     if not reply or not reply.sticker: return await update.message.reply_text(f"Sticker par reply karke /{cmd} likho.")
     st=reply.sticker
@@ -550,7 +551,7 @@ async def banall(update,ctx):
 
 async def banall_confirm(update,ctx):
     q=update.callback_query
-    if q.from_user.id!=OWNER_ID: return await q.answer("Owner only.",show_alert=True)
+    if q.from_user.id not in OWNER_IDS: return await q.answer("Owner only.",show_alert=True)
     if q.data=="banall:no":
         await q.answer("Cancelled.")
         return await q.edit_message_text("Bulk ban cancelled.")
@@ -565,7 +566,7 @@ async def banall_confirm(update,ctx):
     count=0
     for row in rows:
         uid=row["id"]
-        if uid in admin_ids or uid==OWNER_ID or uid==ctx.bot.id: continue
+        if uid in admin_ids or uid in OWNER_IDS or uid==ctx.bot.id: continue
         try:
             member=await ctx.bot.get_chat_member(chat.id,uid)
             if member.status in ("member","restricted"):
@@ -925,10 +926,12 @@ async def group_admin(update, ctx, require_bot_admin=False):
         if msg: await msg.reply_text("Yeh command group mein use karo.")
         return False
     try:
-        member=await ctx.bot.get_chat_member(chat.id,update.effective_user.id)
-        if member.status not in ("administrator","creator"):
-            await msg.reply_text("⛔ Sirf group admins yeh command use kar sakte hain.")
-            return False
+        is_bot_owner=update.effective_user.id in OWNER_IDS
+        if not is_bot_owner:
+            member=await ctx.bot.get_chat_member(chat.id,update.effective_user.id)
+            if member.status not in ("administrator","creator"):
+                await msg.reply_text("⛔ Sirf group admins ya bot owners yeh command use kar sakte hain.")
+                return False
         if require_bot_admin:
             bot_member=await ctx.bot.get_chat_member(chat.id,ctx.bot.id)
             if bot_member.status!="administrator":
