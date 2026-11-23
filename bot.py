@@ -700,7 +700,6 @@ async def member_left(update, ctx):
     name = clean(member.full_name, username if username != "Not set" else "Unknown member")
     group_name = clean(chat.title, "Group")
     language = clean(member.language_code, "Not set")
-    event_time = change.date.strftime("%d %b %Y • %I:%M %p UTC") if change.date else "Not available"
 
     if joined:
         heading = f"🎉 <b>WELCOME TO {group_name}!</b>"
@@ -718,8 +717,7 @@ async def member_left(update, ctx):
         f"🔖 <b>Username:</b> {username}\n"
         f"🆔 <b>User ID:</b> <code>{member.id}</code>\n"
         f"👥 <b>Group:</b> {group_name}\n"
-        f"🌐 <b>Language:</b> {language}\n"
-        f"🕒 <b>{event_label}:</b> {event_time}\n\n"
+        f"🌐 <b>Language:</b> {language}\n\n"
         f"{footer}"
     )
 
