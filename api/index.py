@@ -6,7 +6,7 @@ import os
 from fastapi import FastAPI, Header, HTTPException, Request
 from telegram import Update
 
-from bot import build_application
+from bot import build_application, set_disha_commands
 
 # Avoid logging Telegram API request URLs, which contain the bot token.
 logging.getLogger("httpx").setLevel(logging.WARNING)
@@ -24,6 +24,7 @@ async def get_telegram_app():
             if telegram_app is None:
                 telegram_app = build_application()
                 await telegram_app.initialize()
+                await set_disha_commands(telegram_app)
                 await telegram_app.start()
     return telegram_app
 
