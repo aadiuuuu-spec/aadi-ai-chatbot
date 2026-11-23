@@ -9,7 +9,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 
 TOKEN = os.getenv("BOT_TOKEN", "").strip()
 KEY = os.getenv("GROQ_API_KEY", "").strip()
-MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
+MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 DB_PATH = os.getenv("DB_PATH", "data/aadi.sqlite3")
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
