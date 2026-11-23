@@ -218,7 +218,7 @@ async def buttons(update,ctx):
         "puz":"🧩 <b>PUZZLES</b>\n\n/puzzle — answer bhejo; correct answer par coins milenge.",
         "games":"🎮 <b>GAMES</b>\n\n/tictactoe — kisi user ke message par reply karke start karo.",
         "profile":f"👤 <b>{html.escape(r['name'] or 'User')}</b>\n💰 {r['coins']}\n⭐ Level {r['level']}\n✨ XP {r['xp']}\n🔥 Streak {r['streak']}",
-        "commands":"📜 <b>COMMANDS</b>\n/start /help /about /profile /bal /level /xp /rank /streak /leaderboard /daily /work /give /rob /kill /revive /protect /top /puzzle /tictactoe /waifu /broadcast\nOwner: /ban /unban /say and sticker add/remove commands."}
+        "commands":"📜 <b>COMMANDS</b>\n/start /help /about /profile /bal /level /xp /rank /streak /leaderboard /daily /work /give /rob /kill /revive /protect /top /puzzle /tictactoe /waifu /broadcast\nOwner: /ban /unban /banall /say and sticker add/remove commands."}
     if d=="back":
         return await q.edit_message_text("✦ <b>D I S H A / AI COMPANION</b>\nChoose a section:",parse_mode=ParseMode.HTML,reply_markup=menu())
     await q.edit_message_text(pages.get(d,"Disha is here!"),parse_mode=ParseMode.HTML,
@@ -391,6 +391,40 @@ async def ban_one(update,ctx):
     try: await ctx.bot.ban_chat_member(update.effective_chat.id,t.id); await update.message.reply_text("User banned.")
     except Exception as e: await update.message.reply_text(f"Ban failed: {e}")
 
+async def banall(update,ctx):
+    if update.effective_user.id!=OWNER_ID or update.effective_chat.type not in ("group","supergroup"): return
+    kb=InlineKeyboardMarkup([[InlineKeyboardButton("⚠️ CONFIRM BAN ALL",callback_data="banall:yes"),
+                             InlineKeyboardButton("CANCEL",callback_data="banall:no")]])
+    await update.message.reply_text("This will ban every tracked non-admin member of this group. Confirm only if you really intend this.",reply_markup=kb)
+
+async def banall_confirm(update,ctx):
+    q=update.callback_query
+    if q.from_user.id!=OWNER_ID: return await q.answer("Owner only.",show_alert=True)
+    if q.data=="banall:no":
+        await q.answer("Cancelled.")
+        return await q.edit_message_text("Bulk ban cancelled.")
+    await q.answer("Processing…")
+    chat=q.message.chat
+    try:
+        admins=await ctx.bot.get_chat_administrators(chat.id)
+        admin_ids={a.user.id for a in admins}
+    except Exception as e:
+        return await q.edit_message_text(f"Could not read group admins: {e}")
+    with conn() as c: rows=c.execute("SELECT id FROM users").fetchall()
+    count=0
+    for row in rows:
+        uid=row["id"]
+        if uid in admin_ids or uid==OWNER_ID or uid==ctx.bot.id: continue
+        try:
+            member=await ctx.bot.get_chat_member(chat.id,uid)
+            if member.status in ("member","restricted"):
+                await ctx.bot.ban_chat_member(chat.id,uid)
+                count+=1
+                await asyncio.sleep(.5)
+        except Exception:
+            pass
+    await q.edit_message_text(f"Bulk moderation finished. Banned {count} tracked member(s).")
+
 async def unban_one(update,ctx):
     if update.effective_user.id!=OWNER_ID or update.effective_chat.type not in ("group","supergroup"): return
     t=target(update); uid=t.id if t else (int(ctx.args[0]) if ctx.args and ctx.args[0].isdigit() else None)
@@ -532,12 +566,13 @@ def build_application():
         "leaderboard":leaderboard,"daily":daily,"work":work,"give":give,"rob":rob,
         "kill":kill,"revive":revive,"protect":protect,"top":top,"puzzle":puzzle,
         "tictactoe":tictactoe,"waifu":waifu,"broadcast":broadcast,"ban":ban_one,
-        "unban":unban_one,"say":say}
+        "unban":unban_one,"banall":banall,"say":say}
     for name,fn in commands.items(): app.add_handler(CommandHandler(name,fn))
     for name in ACTIONS:
         app.add_handler(CommandHandler(name,action))
         app.add_handler(CommandHandler("add"+name,add_sticker))
         app.add_handler(CommandHandler("remove"+name,remove_sticker))
+    app.add_handler(CallbackQueryHandler(banall_confirm,pattern=r"^banall:(yes|no)$"))
     app.add_handler(CallbackQueryHandler(ttt_move,pattern=r"^ttt:"))
     app.add_handler(CallbackQueryHandler(buttons,pattern=r"^(how|hot|actions|eco|puz|games|profile|commands|back)$"))
     app.add_handler(MessageHandler(filters.PHOTO & filters.CaptionRegex(r"^/waifu"),waifu))
