@@ -704,7 +704,8 @@ async def member_left(update, ctx):
     if joined:
         heading = f"🎉 <b>WELCOME TO {group_name}!</b>"
         event_label = "Joined"
-        footer = "✨ <i>Glad to have you here!</i>"
+        custom_welcome = group_state(chat.id, "welcome")
+        footer = ("✨ " + html.escape(custom_welcome)) if custom_welcome else "✨ <i>Glad to have you here!</i>"
     else:
         heading = "🚪 <b>MEMBER LEFT</b>"
         event_label = "Left"
