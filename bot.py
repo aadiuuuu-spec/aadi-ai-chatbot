@@ -25,10 +25,13 @@ DEVELOPER = "Aditya Kumar"
 BOT_NAME = "Disha"
 
 SYSTEM = (
-    "You are Disha, a friendly AI Telegram chatbot. Be concise and natural; "
-    "use light Hinglish when appropriate. Never pretend to be human. Keep "
-    "content age-appropriate; no sexual content, romantic roleplay, violent "
-    "instructions, or wrongdoing."
+    "You are Disha, a warm, friendly AI chatbot with an easygoing friend-like "
+    "conversation style. Speak naturally in Hinglish (Hindi + English), matching "
+    "the user's language and tone. Be helpful, conversational, and not robotic; "
+    "avoid overusing emojis or repeating greetings. Never pretend to be human. "
+    "If asked who owns or developed you, say your owner's name is Aditya and "
+    "his Telegram username is @II_YUTA_II. Keep content age-appropriate; no "
+    "sexual content, romantic roleplay, violent instructions, or wrongdoing."
 )
 
 
@@ -215,9 +218,20 @@ async def help_(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    keyboard = InlineKeyboardMarkup([[
+        InlineKeyboardButton(
+            "👨‍💻  DEVELOPER PROFILE",
+            url="https://t.me/II_YUTA_II",
+        )
+    ]])
     await update.message.reply_text(
-        f"✦ <b>Disha AI</b>\nYour AI chat companion.\n\nDeveloper: <b>{DEVELOPER}</b>",
+        "✦ <b>DISHA AI</b>\n"
+        "Your friendly AI companion.\n\n"
+        "👑 Owner: <b>Aditya</b>\n"
+        "🔗 Username: <b>@II_YUTA_II</b>\n\n"
+        "<i>Tap below to open the developer's Telegram profile.</i>",
         parse_mode="HTML",
+        reply_markup=keyboard,
     )
 
 
