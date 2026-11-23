@@ -13,7 +13,7 @@ MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 DB_PATH = os.getenv("DB_PATH", "data/aadi.sqlite3")
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
-log = logging.getLogger("aadi")
+log = logging.getLogger("disha")
 
 PUZZLES = [
     ("What has keys but cannot open locks?", "keyboard"),
@@ -21,8 +21,11 @@ PUZZLES = [
     ("What has a face and two hands but no arms or legs?", "clock"),
     ("What goes up but never comes down?", "age"),
 ]
+DEVELOPER = "Aditya Kumar"
+BOT_NAME = "Disha"
+
 SYSTEM = (
-    "You are Aadi, a friendly AI Telegram chatbot. Be concise and natural; "
+    "You are Disha, a friendly AI Telegram chatbot. Be concise and natural; "
     "use light Hinglish when appropriate. Never pretend to be human. Keep "
     "content age-appropriate; no sexual content, romantic roleplay, violent "
     "instructions, or wrongdoing."
@@ -142,7 +145,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     r = user(update.effective_user)
     name = update.effective_user.first_name or "there"
     await update.message.reply_text(
-        f"✦  <b>A A D I  /  AI COMPANION</b>\n"
+        f"✦  <b>D I S H A  /  AI COMPANION</b>\n"
         f"Your personal chat, games and rewards space.\n"
         f"━━━━━━━━━━━━━━━━━━\n"
         f"👋 Welcome, <b>{name}</b>\n"
@@ -182,7 +185,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "/start — Open main menu\n/profile — Your profile\n/daily — Claim daily coins\n"
             "/work — Earn coins\n/leaderboard — Top users\n/puzzle — Solve a puzzle\n"
             "/waifu — Describe an anime/game character from an image\n\n"
-            "Private chat mein normal message bhejo to Aadi se AI chat kar sakte ho."
+            "Private chat mein normal message bhejo to Disha se AI chat kar sakte ho."
         ),
         "economy": (
             "💰  <b>ECONOMY</b>\n━━━━━━━━━━━━━━━━━━\n"
@@ -198,7 +201,7 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "leaderboard": "🏆  <b>LEADERBOARD</b>\n\nTop users dekhne ke liye /leaderboard bhejo.",
     }
     await q.edit_message_text(
-        pages.get(section, "Aadi AI"),
+        pages.get(section, "Disha AI"),
         parse_mode="HTML",
         reply_markup=back_menu(),
     )
@@ -206,8 +209,15 @@ async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def help_(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "/start /help /profile /daily /work /leaderboard /puzzle /waifu\n"
+        "/start /help /profile /daily /work /leaderboard /puzzle /waifu /about\n"
         "Private chat mein normal message bhejo for AI chat."
+    )
+
+
+async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        f"✦ <b>Disha AI</b>\\nYour AI chat companion.\\n\\nDeveloper: <b>{DEVELOPER}</b>",
+        parse_mode="HTML",
     )
 
 
@@ -344,7 +354,7 @@ def build_application():
     init()
     application = Application.builder().token(TOKEN).build()
     for name, handler in [
-        ("start", start), ("help", help_), ("profile", profile),
+        ("start", start), ("help", help_), ("about", about), ("profile", profile),
         ("daily", daily), ("work", work), ("leaderboard", board),
         ("puzzle", puzzle), ("waifu", waifu),
     ]:
