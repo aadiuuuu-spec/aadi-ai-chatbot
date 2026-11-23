@@ -216,7 +216,7 @@ async def help_(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def about(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        f"✦ <b>Disha AI</b>\\nYour AI chat companion.\\n\\nDeveloper: <b>{DEVELOPER}</b>",
+        f"✦ <b>Disha AI</b>\nYour AI chat companion.\n\nDeveloper: <b>{DEVELOPER}</b>",
         parse_mode="HTML",
     )
 
