@@ -67,17 +67,16 @@ async def setup_webhook(
 ):
     setup_secret = os.getenv("SETUP_SECRET", "")
     webhook_secret = os.getenv("TELEGRAM_WEBHOOK_SECRET", "")
-    deployment_host = os.getenv("VERCEL_URL", "")
     if not setup_secret or not hmac.compare_digest(x_setup_secret, setup_secret):
         raise HTTPException(status_code=403, detail="Invalid setup secret")
-    if not webhook_secret or not deployment_host:
+    if not webhook_secret:
         raise HTTPException(
             status_code=500,
-            detail="TELEGRAM_WEBHOOK_SECRET or VERCEL_URL is missing",
+            detail="TELEGRAM_WEBHOOK_SECRET is missing",
         )
 
     tg_app = await get_telegram_app()
-    webhook_url = f"https://{deployment_host}/api"
+    webhook_url = "https://aadi-ai-chatbot.vercel.app/api"
     await tg_app.bot.set_webhook(
         url=webhook_url,
         secret_token=webhook_secret,
