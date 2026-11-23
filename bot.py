@@ -1085,12 +1085,38 @@ async def group_tools(update,ctx):
     if cmd in {"kick","ban","unban","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","setrules","filters","delfilters","filterlist","addblacklist","removeblock","blocklist","approve","unapprove","setwelcome","delsetwelcome","endgame"}:
         if not await group_admin(update,ctx,require_bot_admin=cmd in {"kick","ban","unban","mute","unmute","promote","demote","pin","unpin","purge","approve","unapprove"}):
             return
-    if cmd in {"kick","ban","mute","unmute","warn","promote","demote"} and (not target_user or target_user.is_bot):
-        return await msg.reply_text("Target user ke message par reply karke command use karo.")
+    if cmd in {"ban","mute","unmute","warn","promote","demote"} and (not target_user or target_user.is_bot):
+        return await msg.reply_text(
+            "⚠️ <b>TARGET REQUIRED</b>\\n"
+            "Jis member par action lena hai, uske message par reply karke command bhejo.",
+            parse_mode="HTML")
     if cmd=="kick":
-        await ctx.bot.ban_chat_member(chat.id,target_user.id)
-        await ctx.bot.unban_chat_member(chat.id,target_user.id,only_if_banned=True)
-        return await msg.reply_text("👢 User ko group se remove kar diya.")
+        user_obj,error=await resolve_moderation_target(update,ctx,args)
+        if error:
+            return await msg.reply_text("⚠️ <b>KICK NOT COMPLETED</b>\\n"+html.escape(error),parse_mode="HTML")
+        if not user_obj or user_obj.is_bot:
+            return await msg.reply_text("⚠️ Bots ko group se kick nahi kiya ja sakta.")
+        if user_obj.id==update.effective_user.id or user_obj.id in OWNER_IDS:
+            return await msg.reply_text("⛔ Is member ko kick nahi kiya ja sakta.")
+        try:
+            member=await ctx.bot.get_chat_member(chat.id,user_obj.id)
+            if member.status in ("administrator","creator"):
+                return await msg.reply_text("⛔ <b>KICK DENIED</b>\\nAdmin ko kick karne se pehle uske admin rights remove karo.",parse_mode="HTML")
+            await ctx.bot.ban_chat_member(chat.id,user_obj.id)
+            await ctx.bot.unban_chat_member(chat.id,user_obj.id,only_if_banned=True)
+            return await msg.reply_text(
+                "👢 <b>USER KICKED</b>\\n"
+                f"👤 <b>Member:</b> {mention(user_obj)}\\n"
+                f"🆔 <b>User ID:</b> <code>{user_obj.id}</code>\\n"
+                f"📍 <b>Group:</b> {html.escape(chat.title or 'this group')}\\n"
+                f"🛡️ <b>Action by:</b> {mention(update.effective_user)}",
+                parse_mode="HTML")
+        except Exception:
+            log.exception("Kick failed in chat %s for user %s",chat.id,user_obj.id)
+            return await msg.reply_text(
+                "❌ <b>KICK FAILED</b>\\n"
+                "Telegram ne action complete nahi kiya. Bot ke admin rights, 'Ban users' permission aur target member ka status check karo.",
+                parse_mode="HTML")
     if cmd=="ban":
         await ctx.bot.ban_chat_member(chat.id,target_user.id); return await msg.reply_text("🔨 User banned.")
     if cmd=="unban":
