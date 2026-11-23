@@ -641,7 +641,7 @@ async def member_left(update, ctx):
 
     old_status = change.old_chat_member.status
     new_status = change.new_chat_member.status
-    departed = change.new_chat_member.user
+    member = change.new_chat_member.user
     chat = update.effective_chat
 
     joined = old_status in ("left", "kicked") and new_status in (
@@ -651,39 +651,40 @@ async def member_left(update, ctx):
     if not joined and not left:
         return
 
-    display = html.escape(departed.full_name or departed.first_name or "Member")
-    username = f"@{html.escape(departed.username)}" if departed.username else "—"
-    first_name = html.escape(departed.first_name or "—")
-    last_name = html.escape(departed.last_name or "—")
-    language = html.escape(departed.language_code or "—")
-    group_name = html.escape(chat.title or "Group")
-    event_time = change.date.strftime("%d %b %Y, %I:%M %p UTC") if change.date else "—"
+    def clean(value, fallback="Not provided"):
+        value = str(value or "")
+        value = re.sub(r"[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]", "", value)
+        value = " ".join(value.split()).strip()
+        return html.escape(value) if value else fallback
+
+    username = f"@{clean(member.username)}" if member.username else "Not set"
+    name = clean(member.full_name, username if username != "Not set" else "Unknown member")
+    group_name = clean(chat.title, "Group")
+    language = clean(member.language_code, "Not set")
+    event_time = change.date.strftime("%d %b %Y • %I:%M %p UTC") if change.date else "Not available"
 
     if joined:
-        heading = f"🎉 <b>WELCOME TO {group_name.upper()}!</b>"
-        event_label = "Joined at"
-        closing = "✨ <i>We're glad to have you here!</i>"
+        heading = f"🎉 <b>WELCOME TO {group_name}!</b>"
+        event_label = "Joined"
+        footer = "✨ <i>Glad to have you here!</i>"
     else:
-        heading = "🚪 <b>MEMBER LEFT THE GROUP</b>"
-        event_label = "Left at"
-        closing = "👋 <i>Goodbye! Take care.</i>"
+        heading = "🚪 <b>MEMBER LEFT</b>"
+        event_label = "Left"
+        footer = "👋 <i>Goodbye!</i>"
 
     message = (
-        f"{heading}\\n\\n"
-        f"👤 <b>Name:</b> {display}\\n"
-        f"📝 <b>First name:</b> {first_name}\\n"
-        f"📝 <b>Last name:</b> {last_name}\\n"
-        f"🔖 <b>Username:</b> {username}\\n"
-        f"🆔 <b>User ID:</b> <code>{departed.id}</code>\\n"
-        f"🤖 <b>Bot account:</b> {'Yes' if departed.is_bot else 'No'}\\n"
-        f"🌐 <b>Language:</b> {language}\\n"
-        f"👥 <b>Group:</b> {group_name}\\n"
-        f"🕒 <b>{event_label}:</b> {event_time}\\n\\n"
-        f"{closing}"
+        f"{heading}\n\n"
+        f"👤 <b>Name:</b> {name}\n"
+        f"🔖 <b>Username:</b> {username}\n"
+        f"🆔 <b>User ID:</b> <code>{member.id}</code>\n"
+        f"👥 <b>Group:</b> {group_name}\n"
+        f"🌐 <b>Language:</b> {language}\n"
+        f"🕒 <b>{event_label}:</b> {event_time}\n\n"
+        f"{footer}"
     )
 
     try:
-        photos = await ctx.bot.get_user_profile_photos(departed.id, limit=1)
+        photos = await ctx.bot.get_user_profile_photos(member.id, limit=1)
         if photos.total_count and photos.photos and photos.photos[0]:
             await ctx.bot.send_photo(
                 chat_id=chat.id,
