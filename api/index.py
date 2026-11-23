@@ -11,8 +11,8 @@ from bot import build_application
 # Avoid logging Telegram API request URLs, which contain the bot token.
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
-log = logging.getLogger("aadi.webhook")
-app = FastAPI(title="Aadi Telegram Bot")
+log = logging.getLogger("disha.webhook")
+app = FastAPI(title="Disha Telegram Bot")
 telegram_app = None
 init_lock = asyncio.Lock()
 
@@ -31,7 +31,7 @@ async def get_telegram_app():
 @app.get("/")
 @app.get("/api")
 async def health():
-    return {"ok": True, "service": "Aadi Telegram webhook"}
+    return {"ok": True, "service": "Disha Telegram webhook"}
 
 
 @app.post("/")
@@ -70,10 +70,7 @@ async def setup_webhook(
     if not setup_secret or not hmac.compare_digest(x_setup_secret, setup_secret):
         raise HTTPException(status_code=403, detail="Invalid setup secret")
     if not webhook_secret:
-        raise HTTPException(
-            status_code=500,
-            detail="TELEGRAM_WEBHOOK_SECRET is missing",
-        )
+        raise HTTPException(status_code=500, detail="TELEGRAM_WEBHOOK_SECRET is missing")
 
     tg_app = await get_telegram_app()
     webhook_url = "https://aadi-ai-chatbot.vercel.app/api"
