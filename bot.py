@@ -564,7 +564,9 @@ async def chat_reply(update,ctx):
     if not msg or not msg.text or msg.text.startswith("/"): return
     if update.effective_chat.type!="private":
         to_bot=msg.reply_to_message and msg.reply_to_message.from_user and msg.reply_to_message.from_user.id==ctx.bot.id
-        if not (to_bot or f"@{BOT_USERNAME}".lower() in msg.text.lower()): return
+        mentions_bot=bool(re.search(r"(?<![\w])disha(?![\w])",msg.text,re.IGNORECASE))
+        username_mention=f"@{BOT_USERNAME}".lower() in msg.text.lower()
+        if not (to_bot or mentions_bot or username_mention): return
     touch(update.effective_user); key=(update.effective_chat.id,update.effective_user.id)
     save_nick(update.effective_user.id,msg.text); name=display_name(update.effective_user)
     answer=ctx.user_data.pop("puzzle_answer",None)
