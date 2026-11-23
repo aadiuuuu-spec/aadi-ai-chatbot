@@ -640,21 +640,50 @@ async def member_left(update, ctx):
         return
     old_status = change.old_chat_member.status
     new_status = change.new_chat_member.status
-    # Only announce voluntary departures; bans/removals are not treated as leaving.
+    # Announce voluntary departures only, not bans/removals.
     if new_status != "left" or old_status in ("left", "kicked"):
         return
+
     departed = change.new_chat_member.user
+    chat = update.effective_chat
     display = html.escape(departed.full_name or departed.first_name or "Member")
     username = f"@{html.escape(departed.username)}" if departed.username else "—"
+    first_name = html.escape(departed.first_name or "—")
+    last_name = html.escape(departed.last_name or "—")
+    language = html.escape(departed.language_code or "—")
+    group_name = html.escape(chat.title or "Group")
+    left_at = change.date.strftime("%d %b %Y, %I:%M %p UTC") if change.date else "—"
     message = (
-        "🚪 <b>Member Left</b>\n\n"
+        "🚪 <b>MEMBER LEFT THE GROUP</b>\n\n"
         f"👤 <b>Name:</b> {display}\n"
-        f"🆔 <b>ID:</b> <code>{departed.id}</code>\n"
-        f"🔖 <b>Username:</b> {username}\n\n"
+        f"📝 <b>First name:</b> {first_name}\n"
+        f"📝 <b>Last name:</b> {last_name}\n"
+        f"🔖 <b>Username:</b> {username}\n"
+        f"🆔 <b>User ID:</b> <code>{departed.id}</code>\n"
+        f"🤖 <b>Bot account:</b> {'Yes' if departed.is_bot else 'No'}\n"
+        f"🌐 <b>Language:</b> {language}\n"
+        f"👥 <b>Group:</b> {group_name}\n"
+        f"🕒 <b>Left at:</b> {left_at}\n\n"
         "👋 <i>Goodbye! Take care.</i>"
     )
+
+    # Use the member's latest Telegram profile photo when available.
+    try:
+        photos = await ctx.bot.get_user_profile_photos(departed.id, limit=1)
+        if photos.total_count and photos.photos and photos.photos[0]:
+            photo_file_id = photos.photos[0][-1].file_id
+            await ctx.bot.send_photo(
+                chat_id=chat.id,
+                photo=photo_file_id,
+                caption=message,
+                parse_mode="HTML",
+            )
+            return
+    except Exception:
+        log.exception("Could not fetch departing member profile photo")
+
     await ctx.bot.send_message(
-        chat_id=update.effective_chat.id,
+        chat_id=chat.id,
         text=message,
         parse_mode="HTML",
         disable_web_page_preview=True,
