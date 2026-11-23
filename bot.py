@@ -49,6 +49,9 @@ SYSTEM = (
 )
 HISTORY = defaultdict(lambda: deque(maxlen=12))
 GAMES, STICKER_SETS, LAST_STICKER = {}, {}, {}
+REACTION_PACK_NAME = "Peach_and_goma853_by_stickersthiefbot"
+REACTION_PACK = None
+LAST_AUTO_STICKER = {}
 
 PUZZLES = [
     ("I speak without a mouth and hear without ears. What am I?", "echo"),
@@ -180,11 +183,63 @@ def action_mentions(update,ctx):
     if ctx.args: return me,f"<b>{html.escape(' '.join(ctx.args))}</b>",msg.message_id
     return me,None,msg.message_id
 
+REACTION_EMOJI = {
+    "love":["💛","❤️","🥰"],"hug":["🫂","🤗","🫶"],"kiss":["💛","❤️","🥰"],
+    "miss":["🥺","😢"],"care":["🤗","🫶","🥺"],"crush":["😳","🥰"],
+    "blush":["😊","☺️","😳"],"shy":["🙈","😊"],"laugh":["😂","🤣","😹"],
+    "funny":["🤣","😂","😹"],"wtf":["😱","😳","🤯"],"wow":["😮","😲","🤩"],
+    "bruh":["🗿","😐","🙄"],"troll":["😈","🤪"],"aura":["😎","🕶️"],
+    "swag":["😎","🕶️"],"dance":["💃","🕺"],"happy":["😊","🥰","😄"],
+    "sad":["😔","😢","🥺"],"cry":["😭","😢"],"mad":["😤","😠"],
+    "scared":["😨","😱"],"excited":["🤩","🥳","😆"],"welcome":["👋","😊"],
+    "bye":["👋","🥺"],"sorry":["🥺","😔"],"slap":["😅","🙈"]
+}
+
+async def pack_sticker(bot,kind,cid,reply_id=None):
+    global REACTION_PACK
+    try:
+        if REACTION_PACK is None:
+            pack=await bot.get_sticker_set(REACTION_PACK_NAME)
+            REACTION_PACK=list(pack.stickers)
+        if not REACTION_PACK: return False
+        wanted=REACTION_EMOJI.get(kind,[])
+        matches=[st for st in REACTION_PACK if getattr(st,"emoji",None) in wanted]
+        chosen=random.choice(matches or REACTION_PACK)
+        await bot.send_sticker(cid,chosen.file_id,reply_to_message_id=reply_id)
+        return True
+    except Exception:
+        log.exception("Reaction sticker pack unavailable")
+        return False
+
 async def sticker(bot,kind,cid,reply_id=None):
     try:
         with conn() as c: rows=c.execute("SELECT file_id FROM custom_stickers WHERE action_name=?",(kind,)).fetchall()
-        if rows: await bot.send_sticker(cid,random.choice([r["file_id"] for r in rows]),reply_to_message_id=reply_id)
-    except Exception: log.exception("Custom sticker send failed")
+        if rows:
+            await bot.send_sticker(cid,random.choice([r["file_id"] for r in rows]),reply_to_message_id=reply_id)
+            return
+        await pack_sticker(bot,kind,cid,reply_id)
+    except Exception: log.exception("Reaction sticker send failed")
+
+def detect_mood(text):
+    t=(text or "").lower()
+    rules=[
+        ("laugh",r"\b(lol|lmao|haha+|hehe+|rofl|funny|joke|😂|🤣|😭)\b"),
+        ("wow",r"\b(wow|omg|seriously|really|shocked|surprise|unbelievable|wtf|what)\b|😱|😳|🤯"),
+        ("sad",r"\b(sad|udaas|dukhi|upset|unhappy|lonely|miss you|bura lag|cry|rona)\b|😔|😢|🥺|😭"),
+        ("happy",r"\b(happy|khush|great|awesome|amazing|yay|congrats|congratulations|nice|good news)\b|🥳|🤩|😊"),
+        ("care",r"\b(thank you|thanks|shukriya|help|care|take care|support)\b|🫶|🤗"),
+        ("excited",r"\b(excited|can't wait|cant wait|lets go|let's go|finally)\b|🔥|🤩")
+    ]
+    for kind,pattern in rules:
+        if re.search(pattern,t,re.I): return kind
+    return None
+
+async def auto_reaction(bot,kind,cid,reply_id):
+    if not kind: return
+    now=time.time()
+    if now-LAST_AUTO_STICKER.get(cid,0)<18: return
+    LAST_AUTO_STICKER[cid]=now
+    await sticker(bot,kind,cid,reply_id)
 
 async def add_sticker(update,ctx):
     if update.effective_user.id!=OWNER_ID: return await update.message.reply_text("⛔ Owner only.")
@@ -509,12 +564,17 @@ async def chat_reply(update,ctx):
     HISTORY[key].append({"role":"user","content":msg.text[:3000]})
     quick=quick_answer(msg.text,name)
     if quick:
-        HISTORY[key].append({"role":"assistant","content":quick}); return await msg.reply_text(quick)
+        HISTORY[key].append({"role":"assistant","content":quick})
+        sent=await msg.reply_text(quick)
+        await auto_reaction(ctx.bot,detect_mood(msg.text),update.effective_chat.id,msg.message_id)
+        return sent
     try: answer=await ai_reply(list(HISTORY[key]),name)
     except Exception:
         HISTORY[key].pop(); log.exception("Groq chat request failed")
         return await msg.reply_text("AI response abhi fail hua. Thodi der baad try karo.")
-    HISTORY[key].append({"role":"assistant","content":answer}); await msg.reply_text(answer[:4000])
+    HISTORY[key].append({"role":"assistant","content":answer})
+    await msg.reply_text(answer[:4000])
+    await auto_reaction(ctx.bot,detect_mood(msg.text),update.effective_chat.id,msg.message_id)
 
 async def sticker_reply(update,ctx):
     msg=update.message; st=msg.sticker if msg else None
