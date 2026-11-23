@@ -947,7 +947,7 @@ async def group_tools(update,ctx):
     cmd=msg.text.split()[0].split("@")[0].lstrip("/").lower() if msg and msg.text else ""
     args=ctx.args or []
     target_user=replied_user(update)
-    if cmd in {"kick","ban","unban","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","setrules","filters","delfilters","addblacklist","removeblock","approve","unapprove","setwelcome","delsetwelcome","endgame"}:
+    if cmd in {"kick","ban","unban","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","setrules","filters","delfilters","filterlist","addblacklist","removeblock","approve","unapprove","setwelcome","delsetwelcome","endgame"}:
         if not await group_admin(update,ctx,require_bot_admin=cmd in {"kick","ban","unban","mute","unmute","promote","demote","pin","unpin","purge","approve","unapprove"}):
             return
     if cmd in {"kick","ban","mute","unmute","warn","promote","demote"} and (not target_user or target_user.is_bot):
