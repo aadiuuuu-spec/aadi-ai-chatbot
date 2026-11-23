@@ -5,7 +5,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import httpx
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity
+from telegram import BotCommand, Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
@@ -797,9 +797,71 @@ async def report_admins(update, ctx):
     await msg.reply_text("✅ Report admins ko privately forward kar diya." if sent else "Admins ko private message nahi pahunch saka. Unhe pehle bot ko start karna pad sakta hai.")
 
 
+async def set_disha_commands(application):
+    commands = [
+        ("start", "Start Disha and open the main menu"),
+        ("help", "Help and tips for using Disha"),
+        ("about", "About Disha AI"),
+        ("profile", "View your profile and stats"),
+        ("bal", "Check your coin balance"),
+        ("level", "View your level and experience"),
+        ("xp", "Check your XP progress"),
+        ("rank", "View your rank"),
+        ("streak", "Check your daily streak"),
+        ("leaderboard", "See the top group members"),
+        ("daily", "Claim your daily reward"),
+        ("work", "Earn coins with work"),
+        ("give", "Give coins to a friend"),
+        ("rob", "Try the group coin game"),
+        ("kill", "Start a playful group game"),
+        ("revive", "Revive a player in the game"),
+        ("protect", "Use protection in the game"),
+        ("top", "See top players"),
+        ("puzzle", "Play a puzzle"),
+        ("tictactoe", "Play tic-tac-toe"),
+        ("waifu", "Get a random waifu image"),
+        ("addf", "Add a friend with a tag"),
+        ("tag", "Tag your saved friends"),
+        ("t", "Shortcut to tag saved friends"),
+        ("ctag", "Change a friend's tag"),
+        ("delf", "Delete a saved friend"),
+        ("allf", "List your saved friends"),
+        ("friend", "Count your saved friends"),
+        ("friends", "Friend system help"),
+        ("setemoji", "Set your friend tag emoji"),
+        ("report", "Contact group admins"),
+        ("love", "Send a friendly love reaction"),
+        ("hug", "Send a friendly hug reaction"),
+        ("miss", "Send a miss-you reaction"),
+        ("care", "Send a caring reaction"),
+        ("blush", "Send a blush reaction"),
+        ("shy", "Send a shy reaction"),
+        ("laugh", "Send a laugh reaction"),
+        ("funny", "Send a funny reaction"),
+        ("wtf", "React with what-the reaction"),
+        ("wow", "Send a wow reaction"),
+        ("bruh", "Send a bruh reaction"),
+        ("troll", "Send a playful troll reaction"),
+        ("aura", "Show your aura"),
+        ("swag", "Show your swag"),
+        ("dance", "Dance reaction"),
+        ("happy", "Happy reaction"),
+        ("sad", "Sad reaction"),
+        ("cry", "Crying reaction"),
+        ("mad", "Angry reaction"),
+        ("scared", "Scared reaction"),
+        ("excited", "Excited reaction"),
+        ("welcome", "Welcome reaction"),
+        ("bye", "Say goodbye"),
+        ("sorry", "Send an apology reaction"),
+        ("slap", "Playful game reaction"),
+    ]
+    await application.bot.set_my_commands([BotCommand(name, description) for name, description in commands])
+
+
 def build_application():
     if not TOKEN: raise RuntimeError("BOT_TOKEN missing. Set it in Vercel environment variables.")
-    init(); app=Application.builder().token(TOKEN).build()
+    init(); app=Application.builder().token(TOKEN).post_init(set_disha_commands).build()
     commands={
         "start":start,"help":help_cmd,"about":about,"profile":profile,"bal":bal,
         "level":level_cmd,"xp":level_cmd,"rank":rank_cmd,"streak":streak_cmd,
