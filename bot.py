@@ -302,7 +302,7 @@ async def add_sticker(update,ctx):
     await update.message.reply_text(f"✅ Sticker /{cmd[3:]} ke liye save ho gaya!")
 
 async def remove_sticker(update,ctx):
-    if update.effective_user.id!=OWNER_ID: return await update.message.reply_text("⛔ Owner only.")
+    if update.effective_user.id not in OWNER_IDS: return await update.message.reply_text("⛔ Owner only.")
     cmd=update.message.text.split()[0].lstrip("/").split("@")[0].lower(); action=cmd[6:]
     with conn() as c:
         if ctx.args and ctx.args[0].lower()=="all": n=c.execute("DELETE FROM custom_stickers WHERE action_name=?",(action,)).rowcount
@@ -526,7 +526,7 @@ async def action(update,ctx):
     await sticker(ctx.bot,cmd,update.effective_chat.id,rid)
 
 async def broadcast(update,ctx):
-    if update.effective_user.id!=OWNER_ID: return await update.message.reply_text("⛔ Owner only.")
+    if update.effective_user.id not in OWNER_IDS: return await update.message.reply_text("⛔ Owner only.")
     if not ctx.args: return await update.message.reply_text("Usage: /broadcast your message")
     with conn() as c: ids=c.execute("SELECT id FROM users").fetchall()
     sent=0
@@ -544,7 +544,7 @@ async def ban_one(update,ctx):
     except Exception as e: await update.message.reply_text(f"Ban failed: {e}")
 
 async def banall(update,ctx):
-    if update.effective_user.id!=OWNER_ID or update.effective_chat.type not in ("group","supergroup"): return
+    if update.effective_user.id not in OWNER_IDS or update.effective_chat.type not in ("group","supergroup"): return
     kb=InlineKeyboardMarkup([[InlineKeyboardButton("CONFIRM",callback_data="banall:yes",style="danger"),
                              InlineKeyboardButton("CANCEL",callback_data="banall:no",style="primary")]])
     await update.message.reply_text("This will ban every tracked non-admin member of this group. Confirm only if you really intend this.",reply_markup=kb)
@@ -585,7 +585,7 @@ async def unban_one(update,ctx):
     except Exception as e: await update.message.reply_text(f"Unban failed: {e}")
 
 async def say(update,ctx):
-    if update.effective_user.id!=OWNER_ID or not ctx.args: return
+    if update.effective_user.id not in OWNER_IDS or not ctx.args: return
     reply_id=update.message.reply_to_message.message_id if update.message.reply_to_message else None
     try: await update.message.delete()
     except Exception: pass
