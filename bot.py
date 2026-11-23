@@ -275,10 +275,11 @@ async def remove_sticker(update,ctx):
 
 def menu():
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("HOW TO USE",callback_data="how",style="primary"),InlineKeyboardButton("FEATURES",callback_data="hot",style="primary")],
-        [InlineKeyboardButton("ACTIONS",callback_data="actions",style="primary"),InlineKeyboardButton("ECONOMY",callback_data="eco",style="primary")],
-        [InlineKeyboardButton("PUZZLES",callback_data="puz",style="primary"),InlineKeyboardButton("GAMES",callback_data="games",style="primary")],
-        [InlineKeyboardButton("PROFILE",callback_data="profile",style="primary"),InlineKeyboardButton("COMMANDS",callback_data="commands",style="primary")]])
+        [InlineKeyboardButton("ʜᴏᴡ ᴛᴏ ᴜsᴇ",callback_data="how",style="primary"),InlineKeyboardButton("ғᴇᴀᴛᴜʀᴇs",callback_data="hot",style="primary")],
+        [InlineKeyboardButton("ᴀᴄᴛɪᴏɴs",callback_data="actions",style="primary"),InlineKeyboardButton("ᴇᴄᴏɴᴏᴍʏ",callback_data="eco",style="primary")],
+        [InlineKeyboardButton("ᴘᴜᴢᴢʟᴇs",callback_data="puz",style="primary"),InlineKeyboardButton("ɢᴀᴍᴇs",callback_data="games",style="primary")],
+        [InlineKeyboardButton("ᴘʀᴏғɪʟᴇ",callback_data="profile",style="primary"),InlineKeyboardButton("ᴄᴏᴍᴍᴀɴᴅs",callback_data="commands",style="primary")],
+        [InlineKeyboardButton("ᴅᴇᴠᴇʟᴏᴘᴇʀ",url="https://t.me/II_YUTA_II",style="success")]])
 
 HOT=("🔷 <b>DISHA — FEATURE OVERVIEW</b>\n\n"
      "<b>1. AI Conversation</b>\nChat naturally with Disha in private. In groups, mention <b>Disha</b>, use the bot username, or reply to one of her messages.\n\n"
