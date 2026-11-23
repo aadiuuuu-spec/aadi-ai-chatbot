@@ -279,6 +279,7 @@ def menu():
         [InlineKeyboardButton("ᴀᴄᴛɪᴏɴs",callback_data="actions",style="primary"),InlineKeyboardButton("ᴇᴄᴏɴᴏᴍʏ",callback_data="eco",style="primary")],
         [InlineKeyboardButton("ᴘᴜᴢᴢʟᴇs",callback_data="puz",style="primary"),InlineKeyboardButton("ɢᴀᴍᴇs",callback_data="games",style="primary")],
         [InlineKeyboardButton("ᴘʀᴏғɪʟᴇ",callback_data="profile",style="primary"),InlineKeyboardButton("ᴄᴏᴍᴍᴀɴᴅs",callback_data="commands",style="primary")],
+        [InlineKeyboardButton("sᴜᴘᴘᴏʀᴛ",url="https://t.me/+xbOwGbcZA-AwZDkx",style="success")],
         [InlineKeyboardButton("ᴅᴇᴠᴇʟᴏᴘᴇʀ",url="https://t.me/II_YUTA_II",style="success")]])
 
 HOT=("🔷 <b>DISHA — FEATURE OVERVIEW</b>\n\n"
