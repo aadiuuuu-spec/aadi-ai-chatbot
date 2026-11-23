@@ -141,6 +141,12 @@ def init():
         c.execute("CREATE TABLE IF NOT EXISTS custom_stickers(action_name TEXT,file_id TEXT UNIQUE,unique_id TEXT)")
         c.execute("CREATE TABLE IF NOT EXISTS nicks(user_id BIGINT PRIMARY KEY,nick TEXT)")
 
+        c.execute("""CREATE TABLE IF NOT EXISTS friends(
+            owner_id BIGINT NOT NULL, friend_id BIGINT NOT NULL, tag TEXT NOT NULL,
+            friend_name TEXT, username TEXT, emoji_id TEXT,
+            PRIMARY KEY(owner_id,friend_id), UNIQUE(owner_id,tag))""")
+
+
 def user(u):
     with conn() as c:
         c.execute("INSERT INTO users(id,name) VALUES(?,?) ON CONFLICT(id) DO NOTHING",(u.id,u.first_name or "User"))
@@ -635,6 +641,127 @@ async def waifu(update,ctx):
     except Exception: pass
     await ctx.bot.send_message(update.effective_chat.id,"💖 "+answer[:3500],reply_to_message_id=target_msg.message_id)
 
+
+
+async def add_friend(update, ctx):
+    msg=update.message; target_user=target(update)
+    if not target_user or target_user.is_bot or target_user.id==update.effective_user.id:
+        return await msg.reply_text("Jis user ko friend banana hai, uske message par reply karke /addf tag_name likho.")
+    if not ctx.args: return await msg.reply_text("Usage: kisi user ke message par reply karke /addf jinu")
+    tag=" ".join(ctx.args).strip().lower()
+    if len(tag)>32 or not re.fullmatch(r"[\w-]+",tag,re.UNICODE):
+        return await msg.reply_text("Tag 1-32 characters ka simple naam hona chahiye.")
+    owner=update.effective_user.id
+    try:
+        with conn() as c:
+            c.execute("""INSERT INTO friends(owner_id,friend_id,tag,friend_name,username)
+                VALUES(?,?,?,?,?) ON CONFLICT(owner_id,friend_id) DO UPDATE SET
+                tag=excluded.tag,friend_name=excluded.friend_name,username=excluded.username""",
+                (owner,target_user.id,tag,target_user.first_name or "Friend",target_user.username or ""))
+    except Exception:
+        return await msg.reply_text("Yeh tag pehle se kisi aur friend ko diya hua hai. Dusra tag try karo.")
+    await msg.reply_text(f"✅ {mention(target_user)} ko friend list mein **{html.escape(tag)}** tag ke saath add kar diya.",parse_mode="HTML")
+
+async def tag_friends(update, ctx):
+    if not ctx.args: return await update.message.reply_text("Usage: /tag jinu archi  ya  /tag all")
+    owner=update.effective_user.id
+    with conn() as c:
+        rows=c.execute("SELECT * FROM friends WHERE owner_id=? ORDER BY tag",(owner,)).fetchall()
+    if not rows: return await update.message.reply_text("Friend list khaali hai. Kisi ke message par /addf tag_name karo.")
+    wanted=[x.lower() for x in ctx.args]
+    selected=rows if wanted==["all"] else [r for r in rows if r["tag"].lower() in wanted]
+    if not selected: return await update.message.reply_text("Diye gaye tag ka friend nahi mila.")
+    if len(selected)>10: selected=selected[:10]
+    parts=[]
+    for r in selected:
+        nm=html.escape(r["friend_name"] or r["tag"])
+        prefix=f'<tg-emoji emoji-id="{r["emoji_id"]}">⭐</tg-emoji> ' if r["emoji_id"] else ""
+        parts.append(prefix+f'<a href="tg://user?id={r["friend_id"]}">{nm}</a>')
+    await update.message.reply_text("👥 "+ " ".join(parts),parse_mode="HTML")
+
+async def change_friend_tag(update, ctx):
+    t=target(update)
+    if not t or not ctx.args: return await update.message.reply_text("Friend ke message par reply karke /ctag new_tag likho.")
+    tag=" ".join(ctx.args).strip().lower()
+    if len(tag)>32 or not re.fullmatch(r"[\w-]+",tag,re.UNICODE): return await update.message.reply_text("Tag 1-32 characters ka simple naam hona chahiye.")
+    try:
+        with conn() as c:
+            cur=c.execute("UPDATE friends SET tag=?,friend_name=?,username=? WHERE owner_id=? AND friend_id=?",
+                (tag,t.first_name or "Friend",t.username or "",update.effective_user.id,t.id))
+            if cur.rowcount==0: return await update.message.reply_text("Yeh user tumhari friend list mein nahi hai.")
+    except Exception: return await update.message.reply_text("Yeh tag kisi aur friend ke paas hai.")
+    await update.message.reply_text(f"✅ Friend ka tag ab **{html.escape(tag)}** hai.",parse_mode="HTML")
+
+async def delete_friend(update, ctx):
+    t=target(update)
+    if t:
+        with conn() as c: cur=c.execute("DELETE FROM friends WHERE owner_id=? AND friend_id=?",(update.effective_user.id,t.id))
+    elif ctx.args:
+        with conn() as c: cur=c.execute("DELETE FROM friends WHERE owner_id=? AND tag=?",(update.effective_user.id," ".join(ctx.args).lower()))
+    else: return await update.message.reply_text("Friend ke message par reply karke /delf likho, ya /delf tag_name.")
+    await update.message.reply_text("🗑️ Friend list se remove kar diya." if cur.rowcount else "Friend nahi mila.")
+
+async def all_friends(update, ctx):
+    with conn() as c: rows=c.execute("SELECT tag,friend_name,username FROM friends WHERE owner_id=? ORDER BY tag",(update.effective_user.id,)).fetchall()
+    if not rows: return await update.message.reply_text("Abhi tumhari friend list khaali hai.")
+    lines=[f"• <b>{html.escape(r['tag'])}</b> — {html.escape(r['friend_name'] or 'Friend')}"+(f" (@{html.escape(r['username'])})" if r['username'] else "") for r in rows[:50]]
+    await update.message.reply_text("👥 <b>Your friends</b> ("+str(len(rows))+")\n"+"\n".join(lines),parse_mode="HTML")
+
+async def friend_count(update, ctx):
+    with conn() as c: n=c.execute("SELECT COUNT(*) AS n FROM friends WHERE owner_id=?",(update.effective_user.id,)).fetchone()["n"]
+    await update.message.reply_text(f"👥 Tumhare {n} friend(s) saved hain.")
+
+async def friends_help(update, ctx):
+    await update.message.reply_text(
+        "👥 FRIEND COMMANDS\n"
+        "• Reply to user: /addf tag_name — friend save\n"
+        "• /tag jinu archi — selected friends tag\n"
+        "• /tag all or /t all — saved friends tag (max 10)\n"
+        "• Reply + /ctag new_tag — tag change\n"
+        "• Reply + /delf or /delf tag_name — remove friend\n"
+        "• /allf — list, /friend — count\n"
+        "• Reply to friend + /setemoji — save a custom premium emoji from the command message"
+    )
+
+async def set_friend_emoji(update, ctx):
+    t=target(update)
+    if not t: return await update.message.reply_text("Friend ke message par reply karo, aur /setemoji ke saath ek premium custom emoji bhejo.")
+    entities=update.message.entities or []
+    eid=next((e.custom_emoji_id for e in entities if e.type==MessageEntity.CUSTOM_EMOJI and e.custom_emoji_id),None)
+    if not eid: return await update.message.reply_text("Command ke text mein Telegram premium custom emoji add karke bhejo: /setemoji ⭐")
+    with conn() as c:
+        cur=c.execute("UPDATE friends SET emoji_id=? WHERE owner_id=? AND friend_id=?",(eid,update.effective_user.id,t.id))
+    if not cur.rowcount: return await update.message.reply_text("Pehle is user ko /addf se friend list mein add karo.")
+    await update.message.reply_text("✅ Is friend ke tag ke saath premium emoji save ho gaya.")
+
+async def admin_list(update, ctx):
+    if update.effective_chat.type not in ("group","supergroup"):
+        return await update.message.reply_text("Yeh command group mein use karo.")
+    try: admins=await ctx.bot.get_chat_administrators(update.effective_chat.id)
+    except Exception: return await update.message.reply_text("Admin list nahi mil saki. Bot ko group mein access chahiye.")
+    lines=[f"• {mention(a.user)}"+(" 👑" if a.status=="creator" else "") for a in admins]
+    await update.message.reply_text("🛡️ <b>Group admins</b>\n"+"\n".join(lines),parse_mode="HTML")
+
+async def report_admins(update, ctx):
+    msg=update.message; reported=target(update)
+    if update.effective_chat.type not in ("group","supergroup"):
+        return await msg.reply_text("Report command group mein use karo.")
+    if not reported: return await msg.reply_text("Jis user ko report karna hai, uske message par reply karke /report likho.")
+    try: admins=await ctx.bot.get_chat_administrators(update.effective_chat.id)
+    except Exception: return await msg.reply_text("Admins ki list nahi mil saki.")
+    reporter=mention(update.effective_user); subject=mention(reported)
+    sent=0
+    for a in admins:
+        if a.user.is_bot: continue
+        try:
+            await ctx.bot.send_message(a.user.id,
+                f"🔔 <b>Group report</b>\nGroup: {html.escape(update.effective_chat.title or 'Group')}\nReported user: {subject}\nReported by: {reporter}\n<a href=\"https://t.me/c/{str(update.effective_chat.id)[4:]}/{msg.reply_to_message.message_id}\">Open reported message</a>",
+                parse_mode="HTML",disable_notification=True)
+            sent+=1
+        except Exception: pass
+    await msg.reply_text("✅ Report admins ko privately forward kar diya." if sent else "Admins ko private message nahi pahunch saka. Unhe pehle bot ko start karna pad sakta hai.")
+
+
 def build_application():
     if not TOKEN: raise RuntimeError("BOT_TOKEN missing. Set it in Vercel environment variables.")
     init(); app=Application.builder().token(TOKEN).build()
@@ -644,7 +771,10 @@ def build_application():
         "leaderboard":leaderboard,"daily":daily,"work":work,"give":give,"rob":rob,
         "kill":kill,"revive":revive,"protect":protect,"top":top,"puzzle":puzzle,
         "tictactoe":tictactoe,"waifu":waifu,"broadcast":broadcast,"ban":ban_one,
-        "unban":unban_one,"banall":banall,"say":say}
+        "unban":unban_one,"banall":banall,"say":say,
+        "addf":add_friend,"tag":tag_friends,"t":tag_friends,"ctag":change_friend_tag,
+        "delf":delete_friend,"allf":all_friends,"friend":friend_count,"friends":friends_help,
+        "setemoji":set_friend_emoji,"admin":admin_list,"admins":admin_list,"report":report_admins}
     for name,fn in commands.items(): app.add_handler(CommandHandler(name,fn))
     for name in ACTIONS:
         app.add_handler(CommandHandler(name,action))
