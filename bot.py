@@ -5,7 +5,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import httpx
-from telegram import BotCommand, Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity
+from telegram import BotCommand, BotCommandScopeDefault, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats, Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
@@ -856,7 +856,9 @@ async def set_disha_commands(application):
         ("sorry", "Send an apology reaction"),
         ("slap", "Playful game reaction"),
     ]
-    await application.bot.set_my_commands([BotCommand(name, description) for name, description in commands])
+    telegram_commands = [BotCommand(name, description) for name, description in commands]
+    for scope in (BotCommandScopeDefault(), BotCommandScopeAllPrivateChats(), BotCommandScopeAllGroupChats()):
+        await application.bot.set_my_commands(telegram_commands, scope=scope)
 
 
 def build_application():
