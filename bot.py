@@ -4,8 +4,8 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import httpx
-from telegram import Update
-from telegram.ext import Application, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
 TOKEN = os.getenv("BOT_TOKEN", "").strip()
 KEY = os.getenv("GROQ_API_KEY", "").strip()
@@ -111,11 +111,96 @@ async def ai(prompt):
         return response.json()["choices"][0]["message"]["content"].strip()
 
 
+def main_menu():
+    # Telegram primary button style gives the interface its blue accent.
+    return InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("👤 PROFILE", callback_data="profile", style="primary"),
+            InlineKeyboardButton("📜 COMMANDS", callback_data="help", style="primary"),
+        ],
+        [
+            InlineKeyboardButton("💰 ECONOMY", callback_data="economy", style="primary"),
+            InlineKeyboardButton("🎮 GAMES", callback_data="games", style="primary"),
+        ],
+        [
+            InlineKeyboardButton("🎁 DAILY REWARD", callback_data="daily", style="primary"),
+            InlineKeyboardButton("💼 WORK", callback_data="work", style="primary"),
+        ],
+        [InlineKeyboardButton("🏆 LEADERBOARD", callback_data="leaderboard", style="primary")],
+    ])
+
+
+def back_menu():
+    return InlineKeyboardMarkup([[
+        InlineKeyboardButton("‹  BACK TO MENU", callback_data="back", style="primary")
+    ]])
+
+
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user(update.effective_user)
+    r = user(update.effective_user)
     xp(update.effective_user.id, 10)
+    r = user(update.effective_user)
+    name = update.effective_user.first_name or "there"
     await update.message.reply_text(
-        f"Hey {update.effective_user.first_name}! Main Aadi AI bot hoon. /help use karo."
+        f"✦  <b>A A D I  /  AI COMPANION</b>\n"
+        f"Your personal chat, games and rewards space.\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"👋 Welcome, <b>{name}</b>\n"
+        f"💰 <b>{r['coins']}</b> coins   ·   ⭐ <b>LV {r['level']}</b>   ·   ✨ <b>{r['xp']}</b> XP\n\n"
+        f"<i>Choose a section to explore.</i>",
+        parse_mode="HTML",
+        reply_markup=main_menu(),
+    )
+
+
+async def menu_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    q = update.callback_query
+    if not q:
+        return
+    await q.answer()
+    section = q.data
+    if section == "back":
+        r = user(q.from_user)
+        await q.edit_message_text(
+            f"✦  <b>A A D I  /  AI COMPANION</b>\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"💰 <b>{r['coins']}</b> coins   ·   ⭐ <b>LV {r['level']}</b>   ·   ✨ <b>{r['xp']}</b> XP\n\n"
+            f"<i>Choose a section to explore.</i>",
+            parse_mode="HTML", reply_markup=main_menu(),
+        )
+        return
+
+    r = user(q.from_user)
+    pages = {
+        "profile": (
+            "👤  <b>YOUR PROFILE</b>\n━━━━━━━━━━━━━━━━━━\n"
+            f"Name: <b>{r['name']}</b>\nCoins: <b>{r['coins']}</b>\n"
+            f"Level: <b>{r['level']}</b>\nXP: <b>{r['xp']}</b>"
+        ),
+        "help": (
+            "📜  <b>COMMAND CENTER</b>\n━━━━━━━━━━━━━━━━━━\n"
+            "/start — Open main menu\n/profile — Your profile\n/daily — Claim daily coins\n"
+            "/work — Earn coins\n/leaderboard — Top users\n/puzzle — Solve a puzzle\n"
+            "/waifu — Describe an anime/game character from an image\n\n"
+            "Private chat mein normal message bhejo to Aadi se AI chat kar sakte ho."
+        ),
+        "economy": (
+            "💰  <b>ECONOMY</b>\n━━━━━━━━━━━━━━━━━━\n"
+            "/daily — Daily reward\n/work — Earn coins\n/leaderboard — Top users\n"
+            "Rewards aur progress tumhare profile mein update hote hain."
+        ),
+        "games": (
+            "🎮  <b>GAMES & DISCOVERY</b>\n━━━━━━━━━━━━━━━━━━\n"
+            "/puzzle — Try a quick puzzle\n/waifu — Image-based anime/game character finder"
+        ),
+        "daily": "🎁  <b>DAILY REWARD</b>\n\nDaily reward claim karne ke liye /daily bhejo.",
+        "work": "💼  <b>WORK</b>\n\nCoins earn karne ke liye /work bhejo.",
+        "leaderboard": "🏆  <b>LEADERBOARD</b>\n\nTop users dekhne ke liye /leaderboard bhejo.",
+    }
+    await q.edit_message_text(
+        pages.get(section, "Aadi AI"),
+        parse_mode="HTML",
+        reply_markup=back_menu(),
     )
 
 
@@ -264,6 +349,7 @@ def build_application():
         ("puzzle", puzzle), ("waifu", waifu),
     ]:
         application.add_handler(CommandHandler(name, handler))
+    application.add_handler(CallbackQueryHandler(menu_callback, pattern=r"^(profile|help|economy|games|daily|work|leaderboard|back)$"))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, chat))
     return application
 
