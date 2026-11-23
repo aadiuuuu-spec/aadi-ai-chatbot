@@ -188,6 +188,10 @@ def init():
             PRIMARY KEY(owner_id,friend_id), UNIQUE(owner_id,tag))""")
 
 
+    with conn() as c:
+        c.execute("CREATE TABLE IF NOT EXISTS group_settings(chat_id BIGINT NOT NULL,setting_key TEXT NOT NULL,setting_value TEXT,PRIMARY KEY(chat_id,setting_key))")
+        c.execute("CREATE TABLE IF NOT EXISTS group_warns(chat_id BIGINT NOT NULL,user_id BIGINT NOT NULL,warnings INTEGER DEFAULT 0,PRIMARY KEY(chat_id,user_id))")
+
 def user(u):
     with conn() as c:
         c.execute("INSERT INTO users(id,name) VALUES(?,?) ON CONFLICT(id) DO NOTHING",(u.id,u.first_name or "User"))
@@ -901,6 +905,202 @@ async def report_admins(update, ctx):
     await msg.reply_text("✅ Report admins ko privately forward kar diya." if sent else "Admins ko private message nahi pahunch saka. Unhe pehle bot ko start karna pad sakta hai.")
 
 
+
+# Persistent group-management data (Vercel instances are stateless).
+def group_state(chat_id, key, value=None, write=False):
+    with conn() as c:
+        if write:
+            c.execute("""INSERT INTO group_settings(chat_id,setting_key,setting_value)
+                VALUES(?,?,?) ON CONFLICT(chat_id,setting_key) DO UPDATE SET
+                setting_value=excluded.setting_value""", (chat_id,key,str(value)))
+            return value
+        row=c.execute("SELECT setting_value FROM group_settings WHERE chat_id=? AND setting_key=?",(chat_id,key)).fetchone()
+        return row["setting_value"] if row else None
+
+async def group_admin(update, ctx, require_bot_admin=False):
+    chat=update.effective_chat; msg=update.effective_message
+    if not chat or chat.type not in ("group","supergroup"):
+        if msg: await msg.reply_text("Yeh command group mein use karo.")
+        return False
+    try:
+        member=await ctx.bot.get_chat_member(chat.id,update.effective_user.id)
+        if member.status not in ("administrator","creator"):
+            await msg.reply_text("⛔ Sirf group admins yeh command use kar sakte hain.")
+            return False
+        if require_bot_admin:
+            bot_member=await ctx.bot.get_chat_member(chat.id,ctx.bot.id)
+            if bot_member.status!="administrator":
+                await msg.reply_text("Mujhe group admin banao aur required permission do.")
+                return False
+    except Exception:
+        await msg.reply_text("Admin permission verify nahi ho saki. Dobara try karo.")
+        return False
+    return True
+
+def replied_user(update):
+    m=update.effective_message
+    return m.reply_to_message.from_user if m and m.reply_to_message else None
+
+async def group_tools(update,ctx):
+    msg=update.effective_message; chat=update.effective_chat
+    cmd=msg.text.split()[0].split("@")[0].lstrip("/").lower() if msg and msg.text else ""
+    args=ctx.args or []
+    target_user=replied_user(update)
+    if cmd in {"kick","ban","unban","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","setrules","filters","delfilters","addblacklist","removeblock","approve","unapprove","setwelcome","delsetwelcome","endgame"}:
+        if not await group_admin(update,ctx,require_bot_admin=cmd in {"kick","ban","unban","mute","unmute","promote","demote","pin","unpin","purge","approve","unapprove"}):
+            return
+    if cmd in {"kick","ban","mute","unmute","warn","promote","demote","approve","unapprove"} and (not target_user or target_user.is_bot):
+        return await msg.reply_text("Target user ke message par reply karke command use karo.")
+    if cmd=="kick":
+        await ctx.bot.ban_chat_member(chat.id,target_user.id)
+        await ctx.bot.unban_chat_member(chat.id,target_user.id,only_if_banned=True)
+        return await msg.reply_text("👢 User ko group se remove kar diya.")
+    if cmd=="ban":
+        await ctx.bot.ban_chat_member(chat.id,target_user.id); return await msg.reply_text("🔨 User banned.")
+    if cmd=="unban":
+        uid=int(args[0]) if args and args[0].isdigit() else (target_user.id if target_user else None)
+        if not uid: return await msg.reply_text("Reply to user or /unban user_id")
+        await ctx.bot.unban_chat_member(chat.id,uid,only_if_banned=True); return await msg.reply_text("✅ User unbanned.")
+    if cmd in {"mute","unmute"}:
+        if cmd=="mute":
+            seconds=3600
+            if args:
+                try: seconds=max(60,min(int(args[0])*60,30*86400))
+                except ValueError: pass
+            from datetime import timedelta, timezone
+            await ctx.bot.restrict_chat_member(chat.id,target_user.id,permissions=__import__("telegram").ChatPermissions(can_send_messages=False),until_date=datetime.now(timezone.utc)+timedelta(seconds=seconds))
+            return await msg.reply_text(f"🔇 {target_user.first_name} muted.")
+        from telegram import ChatPermissions
+        await ctx.bot.restrict_chat_member(chat.id,target_user.id,permissions=ChatPermissions(can_send_messages=True,can_send_audios=True,can_send_documents=True,can_send_photos=True,can_send_videos=True,can_send_video_notes=True,can_send_voice_notes=True,can_send_polls=True,can_send_other_messages=True,can_add_web_page_previews=True))
+        return await msg.reply_text("🔊 User unmuted.")
+    if cmd=="warn":
+        with conn() as c:
+            c.execute("INSERT INTO group_warns(chat_id,user_id,warnings) VALUES(?,?,1) ON CONFLICT(chat_id,user_id) DO UPDATE SET warnings=warnings+1",(chat.id,target_user.id))
+            n=c.execute("SELECT warnings FROM group_warns WHERE chat_id=? AND user_id=?",(chat.id,target_user.id)).fetchone()["warnings"]
+        return await msg.reply_text(f"⚠️ {target_user.first_name} ko warning di. Total: {n}/3")
+    if cmd in {"warnings","resetwarns"}:
+        t=target_user
+        if not t: return await msg.reply_text("User ke message par reply karo.")
+        with conn() as c:
+            if cmd=="resetwarns":
+                c.execute("DELETE FROM group_warns WHERE chat_id=? AND user_id=?",(chat.id,t.id))
+                return await msg.reply_text("✅ Warnings reset.")
+            r=c.execute("SELECT warnings FROM group_warns WHERE chat_id=? AND user_id=?",(chat.id,t.id)).fetchone()
+        return await msg.reply_text(f"⚠️ {t.first_name}: {r['warnings'] if r else 0} warning(s).")
+    if cmd in {"promote","demote"}:
+        if cmd=="promote":
+            await ctx.bot.promote_chat_member(chat.id,target_user.id,can_manage_chat=True,can_delete_messages=True,can_restrict_members=True,can_invite_users=True,can_pin_messages=True)
+        else:
+            await ctx.bot.promote_chat_member(chat.id,target_user.id,can_manage_chat=False,can_delete_messages=False,can_restrict_members=False,can_invite_users=False,can_pin_messages=False,can_promote_members=False)
+        return await msg.reply_text("✅ Admin permissions updated.")
+    if cmd=="pin":
+        m=msg.reply_to_message
+        if not m: return await msg.reply_text("Jis message ko pin karna hai us par reply karo.")
+        await ctx.bot.pin_chat_message(chat.id,m.message_id); return await msg.reply_text("📌 Message pinned.")
+    if cmd=="unpin":
+        m=msg.reply_to_message
+        if m: await ctx.bot.unpin_chat_message(chat.id,m.message_id)
+        else: await ctx.bot.unpin_all_chat_messages(chat.id)
+        return await msg.reply_text("📌 Pin removed.")
+    if cmd=="purge":
+        if not msg.reply_to_message: return await msg.reply_text("Purge start message par reply karo.")
+        start=msg.reply_to_message.message_id; end=msg.message_id
+        ids=list(range(start,end+1))[-100:]
+        for mid in ids:
+            try: await ctx.bot.delete_message(chat.id,mid)
+            except Exception: pass
+        return
+    if cmd=="rules":
+        rules=group_state(chat.id,"rules")
+        return await msg.reply_text("📜 "+(rules or "Is group ke rules abhi set nahi hain."))
+    if cmd=="setrules":
+        if not args: return await msg.reply_text("Usage: /setrules group rules...")
+        group_state(chat.id,"rules"," ".join(args),True); return await msg.reply_text("✅ Group rules saved.")
+    if cmd=="filters":
+        if not args: return await msg.reply_text("Usage: /filters keyword reply text")
+        word=args[0].lower(); val=" ".join(args[1:])
+        if not val: return await msg.reply_text("Reply text bhi likho.")
+        import json
+        data=json.loads(group_state(chat.id,"filters") or "{}"); data[word]=val
+        group_state(chat.id,"filters",json.dumps(data,ensure_ascii=False),True)
+        return await msg.reply_text(f"✅ Filter '{html.escape(word)}' saved.")
+    if cmd=="delfilters":
+        if not args: return await msg.reply_text("Usage: /delfilters keyword")
+        import json
+        data=json.loads(group_state(chat.id,"filters") or "{}"); data.pop(args[0].lower(),None)
+        group_state(chat.id,"filters",json.dumps(data,ensure_ascii=False),True); return await msg.reply_text("✅ Filter removed.")
+    if cmd=="filterlist":
+        import json
+        data=json.loads(group_state(chat.id,"filters") or "{}")
+        return await msg.reply_text("📋 Filters: "+(", ".join(data) if data else "none"))
+    if cmd in {"addblacklist","removeblock","blocklist"}:
+        import json
+        data=json.loads(group_state(chat.id,"blacklist") or "[]")
+        if cmd=="addblacklist":
+            if not args: return await msg.reply_text("Usage: /addblacklist word")
+            word=" ".join(args).lower()
+            if word not in data: data.append(word)
+        elif cmd=="removeblock":
+            if not args: return await msg.reply_text("Usage: /removeblock word")
+            word=" ".join(args).lower(); data=[x for x in data if x!=word]
+        group_state(chat.id,"blacklist",json.dumps(data,ensure_ascii=False),True)
+        return await msg.reply_text("🚫 Blacklist: "+(", ".join(data) if data else "empty"))
+    if cmd in {"approve","unapprove"}:
+        if cmd=="approve":
+            await ctx.bot.approve_chat_join_request(chat.id,target_user.id)
+        else:
+            await ctx.bot.decline_chat_join_request(chat.id,target_user.id)
+        return await msg.reply_text("✅ Join request processed.")
+    if cmd=="setwelcome":
+        if not args: return await msg.reply_text("Usage: /setwelcome welcome message")
+        group_state(chat.id,"welcome"," ".join(args),True); return await msg.reply_text("✅ Welcome message saved.")
+    if cmd=="delsetwelcome":
+        group_state(chat.id,"welcome","",True); return await msg.reply_text("✅ Welcome message removed.")
+    if cmd=="endgame":
+        GAMES.pop(chat.id,None); return await msg.reply_text("🎮 Game ended.")
+    if cmd in {"truth","dare","tr"}:
+        lang=(args[0].lower() if args else "en")
+        truths={"en":["What is one skill you'd like to learn?","What is a small thing that makes your day better?","Which fictional world would you visit?"],
+                "hi":["Tum kaunsi skill seekhna chahoge?","Tumhari favourite yaad kaunsi hai?","Kaunsi fictional duniya visit karna chahoge?"]}
+        dares={"en":["Describe your day using only three emojis.","Send a kind compliment to someone in this group.","Write a tongue-twister without correcting it."],
+               "hi":["Apne din ko sirf 3 emoji mein batao.","Group ke kisi member ki ek achhi baat bolo.","Ek funny tongue-twister likho."]}
+        pool=(truths if cmd=="truth" else dares)
+        key="hi" if lang in {"hi","hindi"} else "en"
+        return await msg.reply_text(("🤔 TRUTH: " if cmd=="truth" else "🎯 DARE: ")+random.choice(pool[key]))
+    if cmd=="google":
+        if not args: return await msg.reply_text("Usage: /google your question")
+        from urllib.parse import quote_plus
+        return await msg.reply_text("🔎 Search: https://www.google.com/search?q="+quote_plus(" ".join(args)),disable_web_page_preview=True)
+    if cmd=="game":
+        return await msg.reply_text("🎮 Quick game: /truth or /dare. /join to join the current group game.")
+    if cmd=="join":
+        return await msg.reply_text("🙌 You're in! Start a game with /game.")
+    if cmd=="ping":
+        return await msg.reply_text("🏓 Pong!")
+    if cmd=="developer":
+        return await msg.reply_text("👨‍💻 Developer: @II_YUTA_II")
+    if cmd=="info":
+        return await msg.reply_text("✨ Disha AI — group assistant, moderation and fun commands.")
+    if cmd=="commands":
+        return await msg.reply_text("🛡️ ADMIN: /kick /ban /unban /mute /unmute /warn /warnings /resetwarns /promote /demote /pin /unpin /purge /setrules /rules /filters /delfilters /filterlist /addblacklist /removeblock /blocklist /approve /unapprove /setwelcome /delsetwelcome /endgame\n🎉 FUN: /truth /dare /tr hi /google /game /join\nℹ️ OTHER: /info /developer /ping")
+    return await msg.reply_text("Command abhi available nahi hai.")
+
+async def group_text_tools(update,ctx):
+    msg=update.effective_message; chat=update.effective_chat
+    if not msg or not msg.text or not chat or chat.type not in ("group","supergroup") or msg.text.startswith("/"): return
+    import json
+    text=msg.text.lower()
+    blocked=json.loads(group_state(chat.id,"blacklist") or "[]")
+    if any(w and w in text for w in blocked):
+        try: await msg.delete()
+        except Exception: pass
+        return
+    filters_data=json.loads(group_state(chat.id,"filters") or "{}")
+    for word,reply in filters_data.items():
+        if word in text:
+            await msg.reply_text(reply); break
+
+
 async def set_disha_commands(application):
     commands = [
         ("start", "sᴛᴀʀᴛ ᴅɪsʜᴀ ᴀɴᴅ ᴏᴘᴇɴ ᴛʜᴇ ᴍᴀɪɴ ᴍᴇɴᴜ"),
@@ -934,6 +1134,23 @@ async def set_disha_commands(application):
         ("friends", "ғʀɪᴇɴᴅ sʏsᴛᴇᴍ ʜᴇʟᴘ"),
         ("setemoji", "sᴇᴛ ʏᴏᴜʀ ғʀɪᴇɴᴅ ᴛᴀɢ ᴇᴍᴏᴊɪ"),
         ("report", "ᴄᴏɴᴛᴀᴄᴛ ɢʀᴏᴜᴘ ᴀᴅᴍɪɴs"),
+        ("commands", "ᴠɪᴇᴡ ᴀʟʟ ɢʀᴏᴜᴘ ᴄᴏᴍᴍᴀɴᴅs"),
+        ("kick", "ʀᴇᴍᴏᴠᴇ ᴀ ᴍᴇᴍʙᴇʀ"), ("mute", "ᴍᴜᴛᴇ ᴀ ᴍᴇᴍʙᴇʀ"),
+        ("unmute", "ᴜɴᴍᴜᴛᴇ ᴀ ᴍᴇᴍʙᴇʀ"), ("warn", "ᴡᴀʀɴ ᴀ ᴍᴇᴍʙᴇʀ"),
+        ("warnings", "ᴄʜᴇᴄᴋ ᴡᴀʀɴɪɴɢs"), ("resetwarns", "ʀᴇsᴇᴛ ᴡᴀʀɴɪɴɢs"),
+        ("promote", "ᴘʀᴏᴍᴏᴛᴇ ᴀ ᴍᴇᴍʙᴇʀ"), ("demote", "ᴅᴇᴍᴏᴛᴇ ᴀɴ ᴀᴅᴍɪɴ"),
+        ("pin", "ᴘɪɴ ᴀ ᴍᴇssᴀɢᴇ"), ("unpin", "ᴜɴᴘɪɴ ᴀ ᴍᴇssᴀɢᴇ"),
+        ("purge", "ᴅᴇʟᴇᴛᴇ ʀᴇᴄᴇɴᴛ ᴍᴇssᴀɢᴇs"), ("rules", "sʜᴏᴡ ɢʀᴏᴜᴘ ʀᴜʟᴇs"),
+        ("setrules", "sᴇᴛ ɢʀᴏᴜᴘ ʀᴜʟᴇs"), ("filters", "ᴀᴅᴅ ᴀ ᴄʜᴀᴛ ғɪʟᴛᴇʀ"),
+        ("delfilters", "ʀᴇᴍᴏᴠᴇ ᴀ ғɪʟᴛᴇʀ"), ("filterlist", "ʟɪsᴛ ғɪʟᴛᴇʀs"),
+        ("addblacklist", "ᴀᴅᴅ ᴀ ʙʟᴀᴄᴋʟɪsᴛ ᴡᴏʀᴅ"), ("removeblock", "ʀᴇᴍᴏᴠᴇ ʙʟᴀᴄᴋʟɪsᴛ ᴡᴏʀᴅ"),
+        ("blocklist", "sʜᴏᴡ ʙʟᴀᴄᴋʟɪsᴛ"), ("approve", "ᴀᴘᴘʀᴏᴠᴇ ᴀ ᴊᴏɪɴ ʀᴇǫᴜᴇsᴛ"),
+        ("unapprove", "ᴅᴇᴄʟɪɴᴇ ᴀ ᴊᴏɪɴ ʀᴇǫᴜᴇsᴛ"), ("setwelcome", "sᴇᴛ ᴡᴇʟᴄᴏᴍᴇ ᴛᴇxᴛ"),
+        ("delsetwelcome", "ʀᴇᴍᴏᴠᴇ ᴡᴇʟᴄᴏᴍᴇ ᴛᴇxᴛ"), ("endgame", "ᴇɴᴅ ᴛʜᴇ ɢʀᴏᴜᴘ ɢᴀᴍᴇ"),
+        ("truth", "ᴛʀᴜᴛʜ ǫᴜᴇsᴛɪᴏɴ"), ("dare", "sᴀғᴇ ғᴜɴ ᴅᴀʀᴇ"),
+        ("tr", "ᴛʀᴜᴛʜ ᴏʀ ᴅᴀʀᴇ ʟᴀɴɢᴜᴀɢᴇ"), ("google", "sᴇᴀʀᴄʜ ᴛʜᴇ ᴡᴇʙ"),
+        ("game", "sᴛᴀʀᴛ ᴀ ǫᴜɪᴄᴋ ɢᴀᴍᴇ"), ("join", "ᴊᴏɪɴ ᴛʜᴇ ɢᴀᴍᴇ"),
+        ("info", "ᴀʙᴏᴜᴛ ᴅɪsʜᴀ"), ("developer", "ᴅɪsʜᴀ ᴅᴇᴠᴇʟᴏᴘᴇʀ"), ("ping", "ᴄʜᴇᴄᴋ ʙᴏᴛ ʀᴇsᴘᴏɴsᴇ"),
         ("love", "sᴇɴᴅ ᴀ ғʀɪᴇɴᴅʟʏ ʟᴏᴠᴇ ʀᴇᴀᴄᴛɪᴏɴ"),
         ("hug", "sᴇɴᴅ ᴀ ғʀɪᴇɴᴅʟʏ ʜᴜɢ ʀᴇᴀᴄᴛɪᴏɴ"),
         ("miss", "sᴇɴᴅ ᴀ ᴍɪss-ʏᴏᴜ ʀᴇᴀᴄᴛɪᴏɴ"),
@@ -979,6 +1196,9 @@ def build_application():
         "delf":delete_friend,"allf":all_friends,"friend":friend_count,"friends":friends_help,
         "setemoji":set_friend_emoji,"admin":admin_list,"admins":admin_list,"report":report_admins}
     for name,fn in commands.items(): app.add_handler(CommandHandler(name,fn))
+    group_names=("kick","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","rules","setrules","filters","delfilters","filterlist","addblacklist","removeblock","blocklist","approve","unapprove","setwelcome","delsetwelcome","endgame","truth","dare","tr","google","game","join","info","developer","ping","commands")
+    for name in group_names: app.add_handler(CommandHandler(name,group_tools))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,group_text_tools),group=1)
     for name in ACTIONS:
         app.add_handler(CommandHandler(name,action))
         app.add_handler(CommandHandler("add"+name,add_sticker))
