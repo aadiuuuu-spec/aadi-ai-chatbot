@@ -8,6 +8,9 @@ from telegram import Update
 
 from bot import build_application
 
+# Avoid logging Telegram API request URLs, which contain the bot token.
+logging.getLogger("httpx").setLevel(logging.WARNING)
+
 log = logging.getLogger("aadi.webhook")
 app = FastAPI(title="Aadi Telegram Bot")
 telegram_app = None
