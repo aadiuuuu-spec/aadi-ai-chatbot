@@ -535,10 +535,11 @@ async def broadcast(update,ctx):
     await update.message.reply_text(f"📢 Broadcast sent to {sent} users.")
 
 async def ban_one(update,ctx):
-    if update.effective_user.id!=OWNER_ID or update.effective_chat.type not in ("group","supergroup"): return
+    if not await group_admin(update,ctx,require_bot_admin=True): return
     t=target(update)
-    if not t: return await update.message.reply_text("User ke message par reply karke /ban likho.")
-    try: await ctx.bot.ban_chat_member(update.effective_chat.id,t.id); await update.message.reply_text("User banned.")
+    uid=t.id if t else (int(ctx.args[0]) if ctx.args and ctx.args[0].isdigit() else None)
+    if not uid: return await update.message.reply_text("Reply to user or /ban user_id")
+    try: await ctx.bot.ban_chat_member(update.effective_chat.id,uid); await update.message.reply_text("User banned.")
     except Exception as e: await update.message.reply_text(f"Ban failed: {e}")
 
 async def banall(update,ctx):
@@ -576,9 +577,9 @@ async def banall_confirm(update,ctx):
     await q.edit_message_text(f"Bulk moderation finished. Banned {count} tracked member(s).")
 
 async def unban_one(update,ctx):
-    if update.effective_user.id!=OWNER_ID or update.effective_chat.type not in ("group","supergroup"): return
+    if not await group_admin(update,ctx,require_bot_admin=True): return
     t=target(update); uid=t.id if t else (int(ctx.args[0]) if ctx.args and ctx.args[0].isdigit() else None)
-    if not uid: return await update.message.reply_text("Reply to user or send /unban <user_id>")
+    if not uid: return await update.message.reply_text("Reply to user or send /unban user_id")
     try: await ctx.bot.unban_chat_member(update.effective_chat.id,uid,only_if_banned=True); await update.message.reply_text("Unbanned.")
     except Exception as e: await update.message.reply_text(f"Unban failed: {e}")
 
@@ -949,7 +950,7 @@ async def group_tools(update,ctx):
     if cmd in {"kick","ban","unban","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","setrules","filters","delfilters","addblacklist","removeblock","approve","unapprove","setwelcome","delsetwelcome","endgame"}:
         if not await group_admin(update,ctx,require_bot_admin=cmd in {"kick","ban","unban","mute","unmute","promote","demote","pin","unpin","purge","approve","unapprove"}):
             return
-    if cmd in {"kick","ban","mute","unmute","warn","promote","demote","approve","unapprove"} and (not target_user or target_user.is_bot):
+    if cmd in {"kick","ban","mute","unmute","warn","promote","demote"} and (not target_user or target_user.is_bot):
         return await msg.reply_text("Target user ke message par reply karke command use karo.")
     if cmd=="kick":
         await ctx.bot.ban_chat_member(chat.id,target_user.id)
@@ -1046,10 +1047,10 @@ async def group_tools(update,ctx):
         group_state(chat.id,"blacklist",json.dumps(data,ensure_ascii=False),True)
         return await msg.reply_text("🚫 Blacklist: "+(", ".join(data) if data else "empty"))
     if cmd in {"approve","unapprove"}:
-        if cmd=="approve":
-            await ctx.bot.approve_chat_join_request(chat.id,target_user.id)
-        else:
-            await ctx.bot.decline_chat_join_request(chat.id,target_user.id)
+        uid=int(args[0]) if args and args[0].isdigit() else (target_user.id if target_user else None)
+        if not uid: return await msg.reply_text("Usage: /approve user_id or /unapprove user_id")
+        if cmd=="approve": await ctx.bot.approve_chat_join_request(chat.id,uid)
+        else: await ctx.bot.decline_chat_join_request(chat.id,uid)
         return await msg.reply_text("✅ Join request processed.")
     if cmd=="setwelcome":
         if not args: return await msg.reply_text("Usage: /setwelcome welcome message")
@@ -1196,7 +1197,7 @@ def build_application():
         "delf":delete_friend,"allf":all_friends,"friend":friend_count,"friends":friends_help,
         "setemoji":set_friend_emoji,"admin":admin_list,"admins":admin_list,"report":report_admins}
     for name,fn in commands.items(): app.add_handler(CommandHandler(name,fn))
-    group_names=("kick","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","rules","setrules","filters","delfilters","filterlist","addblacklist","removeblock","blocklist","approve","unapprove","setwelcome","delsetwelcome","endgame","truth","dare","tr","google","game","join","info","developer","ping","commands")
+    group_names=("kick","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","rules","filterlist","setrules","filters","delfilters","filterlist","addblacklist","removeblock","blocklist","approve","unapprove","setwelcome","delsetwelcome","endgame","truth","dare","tr","google","game","join","info","developer","ping","commands")
     for name in group_names: app.add_handler(CommandHandler(name,group_tools))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,group_text_tools),group=1)
     for name in ACTIONS:
