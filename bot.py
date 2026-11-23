@@ -274,13 +274,11 @@ async def remove_sticker(update,ctx):
     await update.message.reply_text(f"🗑️ /{action} se {n} sticker remove hue.")
 
 def menu():
-    # Telegram does not expose button-colour controls; blue diamond accents provide a consistent visual theme.
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔹 HOW TO USE",callback_data="how"),InlineKeyboardButton("🔹 FEATURES",callback_data="hot")],
-        [InlineKeyboardButton("🔹 ACTIONS",callback_data="actions"),InlineKeyboardButton("🔹 ECONOMY",callback_data="eco")],
-        [InlineKeyboardButton("🔹 PUZZLES",callback_data="puz"),InlineKeyboardButton("🔹 GAMES",callback_data="games")],
-        [InlineKeyboardButton("🔹 PROFILE",callback_data="profile"),InlineKeyboardButton("🔹 COMMANDS",callback_data="commands")],
-        [InlineKeyboardButton("🔹 DEVELOPER",url="https://t.me/II_YUTA_II")]])
+        [InlineKeyboardButton("HOW TO USE",callback_data="how",style="primary"),InlineKeyboardButton("FEATURES",callback_data="hot",style="primary")],
+        [InlineKeyboardButton("ACTIONS",callback_data="actions",style="primary"),InlineKeyboardButton("ECONOMY",callback_data="eco",style="primary")],
+        [InlineKeyboardButton("PUZZLES",callback_data="puz",style="primary"),InlineKeyboardButton("GAMES",callback_data="games",style="primary")],
+        [InlineKeyboardButton("PROFILE",callback_data="profile",style="primary"),InlineKeyboardButton("COMMANDS",callback_data="commands",style="primary")]])
 
 HOT=("🔷 <b>DISHA — FEATURE OVERVIEW</b>\n\n"
      "<b>1. AI Conversation</b>\nChat naturally with Disha in private. In groups, mention <b>Disha</b>, use the bot username, or reply to one of her messages.\n\n"
@@ -291,7 +289,6 @@ HOT=("🔷 <b>DISHA — FEATURE OVERVIEW</b>\n\n"
      "<b>6. Games &amp; Puzzles</b>\nTry /puzzle or challenge a group member with /tictactoe.\n\n"
      "<b>7. Image Recognition</b>\nUse /waifu with an image or reply to an image to ask for a likely fictional character and series. Results may be uncertain.\n\n"
      "<b>8. Group Utilities</b>\nCheck administrators with /admin or /admins and send a report to admins with /report.\n\n"
-     "<b>9. Owner Tools</b>\nThe owner has access to moderation, broadcast, message and custom-sticker management commands.\n\n"
      "<blockquote>Important: Coins, robbery, elimination, revival and protection are virtual game mechanics. They do not affect real accounts or people.</blockquote>")
 
 async def start(update,ctx):
@@ -317,11 +314,11 @@ async def buttons(update,ctx):
         "puz":"🔷 <b>PUZZLES</b>\n/puzzle — receive a puzzle and submit your answer in the chat.\n\n<blockquote>A correct answer awards virtual coins. Use /puzzle again to request another puzzle.</blockquote>",
         "games":"🔷 <b>GAMES</b>\n/tictactoe — reply to another member's message to start a Tic-Tac-Toe match.\n/kill, /revive, /protect and /rob — virtual game mechanics.\n\n<blockquote>These commands are fictional gameplay only; they do not cause real-world harm.</blockquote>",
         "profile":f"🔷 <b>YOUR PROFILE</b>\n👤 Name: <b>{html.escape(r['name'] or 'User')}</b>\n💰 Coins: <b>{r['coins']}</b>\n⭐ Level: <b>{r['level']}</b>\n✨ XP: <b>{r['xp']}</b>\n🔥 Daily streak: <b>{r['streak']}</b>\n💀 Game eliminations: <b>{r['kills']}</b>  ·  ☠️ Game losses: <b>{r['deaths']}</b>",
-        "commands":"🔷 <b>COMMAND DIRECTORY</b>\n\n<b>Core:</b> /start /help /about /profile\n<b>Progress:</b> /bal /level /xp /rank /streak /leaderboard\n<b>Economy:</b> /daily /work /give /rob /protect /top\n<b>Games:</b> /kill /revive /puzzle /tictactoe\n<b>Image:</b> /waifu\n<b>Friends:</b> /addf /tag /t /ctag /delf /allf /friend /friends /setemoji\n<b>Group tools:</b> /admin /admins /report\n<b>Social actions:</b> "+" ".join("/"+x for x in ACTIONS)+"\n<b>Owner-only:</b> /broadcast /ban /unban /banall /say and custom-sticker add/remove commands.\n\n<blockquote>Some commands require a reply to another member. Use /friends for detailed friend commands.</blockquote>"}
+        "commands":"🔷 <b>COMMAND DIRECTORY</b>\n\n<b>Core:</b> /start /help /about /profile\n<b>Progress:</b> /bal /level /xp /rank /streak /leaderboard\n<b>Economy:</b> /daily /work /give /rob /protect /top\n<b>Games:</b> /kill /revive /puzzle /tictactoe\n<b>Image:</b> /waifu\n<b>Friends:</b> /addf /tag /t /ctag /delf /allf /friend /friends /setemoji\n<b>Group tools:</b> /admin /admins /report\n<b>Social actions:</b> "+" ".join("/"+x for x in ACTIONS)+"\n\n<blockquote>Some commands require a reply to another member. Use /friends for detailed friend commands.</blockquote>"}
     if d=="back":
         return await q.edit_message_text("🔷 <b>DISHA | MAIN MENU</b>\nChoose a section to continue:",parse_mode=ParseMode.HTML,reply_markup=menu())
     await q.edit_message_text(pages.get(d,"Disha is here!"),parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔹 BACK TO MENU",callback_data="back")]]))
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("BACK TO MENU",callback_data="back",style="primary")]]))
 
 async def help_cmd(update,ctx):
     touch(update.effective_user)
@@ -340,14 +337,11 @@ async def help_cmd(update,ctx):
         parse_mode=ParseMode.HTML)
 
 async def about(update,ctx):
-    kb=InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 DEVELOPER PROFILE",url="https://t.me/II_YUTA_II")]])
     await update.message.reply_text(
         "🔷 <b>ABOUT DISHA</b>\n\n"
-        "Disha is an AI-powered Telegram companion with conversational chat, social actions, custom stickers, friend tags, virtual economy, games, puzzles and group utilities.\n\n"
-        "👑 <b>Developer:</b> Aditya\n🔗 <b>Telegram:</b> @II_YUTA_II\n\n"
-        "<blockquote>Note: Telegram controls the actual message typeface and inline-button colours. Disha uses clear formatting and blue visual accents for a consistent interface.</blockquote>\n"
-        "<i>Use the button below to open the developer profile.</i>",
-        parse_mode="HTML",reply_markup=kb)
+        "Disha is an AI-powered Telegram companion featuring natural chat, social actions, custom stickers, friend tags, virtual coins, progress tracking, games, puzzles and group utilities.\n\n"
+        "<blockquote>Tip: Open /start to explore the feature menu, or use /help for the command list.</blockquote>",
+        parse_mode="HTML")
 
 async def profile(update,ctx):
     r=touch(update.effective_user)
@@ -460,7 +454,7 @@ async def puzzle(update,ctx):
 
 WINS=[(0,1,2),(3,4,5),(6,7,8),(0,3,6),(1,4,7),(2,5,8),(0,4,8),(2,4,6)]
 def ttt_kb(b):
-    return InlineKeyboardMarkup([[InlineKeyboardButton(b[r*3+c] if b[r*3+c]!=" " else "·",callback_data=f"ttt:{r*3+c}") for c in range(3)] for r in range(3)])
+    return InlineKeyboardMarkup([[InlineKeyboardButton(b[r*3+c] if b[r*3+c]!=" " else "·",callback_data=f"ttt:{r*3+c}",style="primary") for c in range(3)] for r in range(3)])
 
 async def tictactoe(update,ctx):
     touch(update.effective_user); t=target(update); me=update.effective_user
@@ -510,8 +504,8 @@ async def ban_one(update,ctx):
 
 async def banall(update,ctx):
     if update.effective_user.id!=OWNER_ID or update.effective_chat.type not in ("group","supergroup"): return
-    kb=InlineKeyboardMarkup([[InlineKeyboardButton("⚠️ CONFIRM BAN ALL",callback_data="banall:yes"),
-                             InlineKeyboardButton("CANCEL",callback_data="banall:no")]])
+    kb=InlineKeyboardMarkup([[InlineKeyboardButton("CONFIRM",callback_data="banall:yes",style="danger"),
+                             InlineKeyboardButton("CANCEL",callback_data="banall:no",style="primary")]])
     await update.message.reply_text("This will ban every tracked non-admin member of this group. Confirm only if you really intend this.",reply_markup=kb)
 
 async def banall_confirm(update,ctx):
