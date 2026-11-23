@@ -32,15 +32,18 @@ SYSTEM = (
     "Treat each message as part of an ongoing conversation: notice the user's "
     "mood, remember details already shared in the current chat, respond to the "
     "subtext, and don't ask for information they already gave. "
-    "Keep ordinary replies concise and human-sounding—often one short line is "
-    "enough. Vary sentence openings and reactions. Use natural chat expressions "
-    "like 'achha', 'arey', 'hmm', 'lol', or 'sahi hai' only when they fit; don't "
-    "sprinkle them mechanically. Use occasional relevant emojis, not a wall of "
-    "emojis. If the user shares a small win, react with genuine enthusiasm; if "
-    "they tease or joke, play along with light, harmless banter; if they ask a "
-    "simple question, answer directly without unnecessary lectures. Ask a follow-up "
-    "only when it genuinely moves the conversation forward—don't end every reply "
-    "with a question. Don't repeat greetings, generic offers to help, or the same "
+    "Give replies enough substance to feel attentive, not lazy or generic. For "
+    "casual chat, usually write 1-3 natural sentences; for questions, answer with "
+    "the useful detail first and add a short explanation or example when needed. "
+    "Notice details from recent chat history and refer to them naturally when "
+    "relevant. Vary sentence openings and reactions. Use Hinglish naturally when "
+    "the user does, but mirror English or Hindi when that is what they use. Use "
+    "occasional relevant emojis, never a wall of them. If the user shares a win, "
+    "react specifically; if they joke, respond with fresh harmless banter; if "
+    "they ask for an opinion, give a clear reason rather than empty agreement. "
+    "Ask a follow-up only when it genuinely helps; don't end every reply with "
+    "a question. Avoid repetitive 'hmm', 'achha', 'lol', generic offers, and "
+    "one-word filler replies. Don't repeat greetings, generic offers to help, or the same "
     "catchphrases. If the user is upset or discussing something serious, drop the "
     "teasing and respond calmly, respectfully, and supportively. Be honest about "
     "being an AI; never pretend to be human, flirt, act as a romantic partner, or "
@@ -632,6 +635,16 @@ async def ai_reply(history,name):
 async def chat_reply(update,ctx):
     msg=update.message
     if not msg or not msg.text or msg.text.startswith("/"): return
+    answer=ctx.user_data.get("puzzle_answer")
+    if answer and update.effective_chat.type in ("group","supergroup"):
+        if msg.text.strip().lower()==answer:
+            ctx.user_data.pop("puzzle_answer",None)
+            with conn() as c: c.execute("UPDATE users SET coins=coins+50 WHERE id=?",(update.effective_user.id,))
+            return await msg.reply_text("🎉 Correct answer! **+50 coins** added to your balance.",parse_mode="Markdown")
+        if msg.text.strip().lower().startswith("/"):
+            pass
+        else:
+            return await msg.reply_text("Not quite—ek aur try karo, ya /puzzle se naya sawaal lo.")
     if update.effective_chat.type!="private":
         to_bot=msg.reply_to_message and msg.reply_to_message.from_user and msg.reply_to_message.from_user.id==ctx.bot.id
         mentions_bot=bool(re.search(r"(?<![\w])disha(?![\w])",msg.text,re.IGNORECASE))
@@ -643,9 +656,9 @@ async def chat_reply(update,ctx):
     if answer:
         if msg.text.strip().lower()==answer:
             with conn() as c: c.execute("UPDATE users SET coins=coins+50 WHERE id=?",(update.effective_user.id,))
-            return await msg.reply_text("Correct! +50 coins 🎉")
+            return await msg.reply_text("🎉 Correct answer! +50 coins added to your balance.")
         ctx.user_data["puzzle_answer"]=answer
-        return await msg.reply_text("Not quite. Ek aur try karo ya /puzzle se naya sawaal lo.")
+        return await msg.reply_text("Not quite—ek aur try karo, ya /puzzle se naya sawaal lo.")
     HISTORY[key].append({"role":"user","content":msg.text[:3000]})
     quick=quick_answer(msg.text,name)
     if quick:
@@ -653,10 +666,12 @@ async def chat_reply(update,ctx):
         sent=await msg.reply_text(quick)
         await auto_reaction(ctx.bot,detect_mood(msg.text),update.effective_chat.id,msg.message_id)
         return sent
-    try: answer=await ai_reply(list(HISTORY[key]),name)
+    try:
+        await ctx.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
+        answer=await ai_reply(list(HISTORY[key]),name)
     except Exception:
         HISTORY[key].pop(); log.exception("Groq chat request failed")
-        return await msg.reply_text("AI response abhi fail hua. Thodi der baad try karo.")
+        return await msg.reply_text("Abhi reply generate nahi ho paaya. Thodi der baad ek baar phir message karna.")
     HISTORY[key].append({"role":"assistant","content":answer})
     await msg.reply_text(answer[:4000])
     await auto_reaction(ctx.bot,detect_mood(msg.text),update.effective_chat.id,msg.message_id)
@@ -953,7 +968,7 @@ async def group_tools(update,ctx):
     cmd=msg.text.split()[0].split("@")[0].lstrip("/").lower() if msg and msg.text else ""
     args=ctx.args or []
     target_user=replied_user(update)
-    if cmd in {"kick","ban","unban","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","setrules","filters","delfilters","filterlist","addblacklist","removeblock","approve","unapprove","setwelcome","delsetwelcome","endgame"}:
+    if cmd in {"kick","ban","unban","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","setrules","filters","delfilters","filterlist","addblacklist","removeblock","blocklist","approve","unapprove","setwelcome","delsetwelcome","endgame"}:
         if not await group_admin(update,ctx,require_bot_admin=cmd in {"kick","ban","unban","mute","unmute","promote","demote","pin","unpin","purge","approve","unapprove"}):
             return
     if cmd in {"kick","ban","mute","unmute","warn","promote","demote"} and (not target_user or target_user.is_bot):
@@ -984,7 +999,7 @@ async def group_tools(update,ctx):
         with conn() as c:
             c.execute("INSERT INTO group_warns(chat_id,user_id,warnings) VALUES(?,?,1) ON CONFLICT(chat_id,user_id) DO UPDATE SET warnings=warnings+1",(chat.id,target_user.id))
             n=c.execute("SELECT warnings FROM group_warns WHERE chat_id=? AND user_id=?",(chat.id,target_user.id)).fetchone()["warnings"]
-        return await msg.reply_text(f"⚠️ {target_user.first_name} ko warning di. Total: {n}/3")
+        return await msg.reply_text(f"⚠️ Warning recorded for {html.escape(target_user.first_name or 'member')}. Total warnings: {n}.",parse_mode="HTML")
     if cmd in {"warnings","resetwarns"}:
         t=target_user
         if not t: return await msg.reply_text("User ke message par reply karo.")
@@ -1013,9 +1028,14 @@ async def group_tools(update,ctx):
         if not msg.reply_to_message: return await msg.reply_text("Purge start message par reply karo.")
         start=msg.reply_to_message.message_id; end=msg.message_id
         ids=list(range(start,end+1))[-100:]
+        deleted=0
         for mid in ids:
-            try: await ctx.bot.delete_message(chat.id,mid)
-            except Exception: pass
+            try:
+                await ctx.bot.delete_message(chat.id,mid)
+                deleted+=1
+            except Exception:
+                continue
+        await ctx.bot.send_message(chat.id,f"🧹 Purge complete — {deleted} message(s) removed.")
         return
     if cmd=="rules":
         rules=group_state(chat.id,"rules")
@@ -1106,6 +1126,26 @@ async def group_text_tools(update,ctx):
     for word,reply in filters_data.items():
         if word in text:
             await msg.reply_text(reply); break
+
+
+async def safe_group_tools(update, ctx):
+    try:
+        await group_tools(update, ctx)
+    except Exception:
+        log.exception("Group command failed: %s", getattr(update.effective_message, "text", "unknown"))
+        msg = update.effective_message
+        if msg:
+            await msg.reply_text("⚠️ Command complete nahi ho saka. Bot permissions aur command format check karke dobara try karo.")
+
+async def disha_error_handler(update, ctx):
+    error = ctx.error
+    log.error("Unhandled Telegram update error", exc_info=(type(error), error, error.__traceback__) if error else None)
+    msg = getattr(update, "effective_message", None)
+    if msg and msg.text and msg.text.startswith("/"):
+        try:
+            await msg.reply_text("⚠️ Is command ko process karte waqt issue aa gaya. Thodi der baad dobara try karo.")
+        except Exception:
+            log.exception("Could not send command error notice")
 
 
 async def set_disha_commands(application):
@@ -1204,7 +1244,7 @@ def build_application():
         "setemoji":set_friend_emoji,"admin":admin_list,"admins":admin_list,"report":report_admins}
     for name,fn in commands.items(): app.add_handler(CommandHandler(name,fn))
     group_names=("kick","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","rules","filterlist","setrules","filters","delfilters","filterlist","addblacklist","removeblock","blocklist","approve","unapprove","setwelcome","delsetwelcome","endgame","truth","dare","tr","google","game","join","info","developer","ping","commands")
-    for name in group_names: app.add_handler(CommandHandler(name,group_tools))
+    for name in group_names: app.add_handler(CommandHandler(name,safe_group_tools))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,group_text_tools),group=1)
     for name in ACTIONS:
         app.add_handler(CommandHandler(name,action))
@@ -1217,6 +1257,7 @@ def build_application():
     app.add_handler(MessageHandler(filters.PHOTO & filters.CaptionRegex(r"^/waifu"),waifu))
     app.add_handler(MessageHandler(filters.Sticker.ALL,sticker_reply))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,chat_reply))
+    app.add_error_handler(disha_error_handler)
     return app
 
 def main():
