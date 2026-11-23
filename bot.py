@@ -199,6 +199,7 @@ def init():
     with conn() as c:
         c.execute("CREATE TABLE IF NOT EXISTS group_settings(chat_id BIGINT NOT NULL,setting_key TEXT NOT NULL,setting_value TEXT,PRIMARY KEY(chat_id,setting_key))")
         c.execute("CREATE TABLE IF NOT EXISTS group_warns(chat_id BIGINT NOT NULL,user_id BIGINT NOT NULL,warnings INTEGER DEFAULT 0,PRIMARY KEY(chat_id,user_id))")
+        c.execute("CREATE TABLE IF NOT EXISTS group_usernames(chat_id BIGINT NOT NULL,username TEXT NOT NULL,user_id BIGINT NOT NULL,display_name TEXT,PRIMARY KEY(chat_id,username))")
 
 def user(u):
     with conn() as c:
@@ -230,6 +231,81 @@ def mention(u):
 
 def target(update):
     return update.message.reply_to_message.from_user if update.message and update.message.reply_to_message else None
+
+def mentioned_user(update):
+    msg=update.effective_message
+    if not msg:
+        return None
+    for entity in (msg.entities or []):
+        if entity.type == MessageEntity.TEXT_MENTION and entity.user:
+            return entity.user
+    return None
+
+def username_from_args(args):
+    for arg in args or []:
+        value=arg.strip().lstrip("@").lower()
+        if value and re.fullmatch(r"[a-z0-9_]{5,32}",value):
+            return value
+    return None
+
+async def resolve_moderation_target(update, ctx, args):
+    msg=update.effective_message
+    replied=replied_user(update) if "replied_user" in globals() else (msg.reply_to_message.from_user if msg and msg.reply_to_message else None)
+    if replied:
+        return replied, None
+    mentioned=mentioned_user(update)
+    if mentioned:
+        return mentioned, None
+    for entity in (msg.entities or [] if msg else []):
+        if entity.type == MessageEntity.MENTION:
+            username=(msg.parse_entity(entity) or "").lstrip("@").lower()
+            if username:
+                with conn() as c:
+                    row=c.execute("SELECT user_id,display_name FROM group_usernames WHERE chat_id=? AND username=?",(update.effective_chat.id,username)).fetchone()
+                if row:
+                    try:
+                        user_obj=await ctx.bot.get_chat(row["user_id"])
+                        return user_obj, None
+                    except Exception:
+                        return None, "Username record mil gaya, lekin Telegram user details abhi fetch nahi kar paaya."
+                return None, f"@{username} ki user ID abhi known nahi hai. Uske message par reply karke /ban use karo."
+    if args:
+        raw=args[0].strip()
+        if raw.isdigit():
+            try:
+                user_obj=await ctx.bot.get_chat(int(raw))
+                return user_obj, None
+            except Exception:
+                return None, "Is user ID ko Telegram se verify nahi kar paaya."
+        username=username_from_args(args)
+        if username:
+            with conn() as c:
+                row=c.execute("SELECT user_id FROM group_usernames WHERE chat_id=? AND username=?",(update.effective_chat.id,username)).fetchone()
+            if row:
+                try:
+                    return await ctx.bot.get_chat(row["user_id"]), None
+                except Exception:
+                    return None, f"@{username} ki details fetch nahi ho paayi. User ke message par reply karke try karo."
+            return None, f"@{username} abhi group ke known users mein nahi hai. Uske message par reply karke /ban use karo."
+    return None, "Kisi member ke message par reply karo, clickable mention select karo, ya known @username / user ID do."
+
+async def remember_group_user(update, ctx):
+    msg=update.effective_message
+    user_obj=update.effective_user
+    chat=update.effective_chat
+    if not msg or not user_obj or not chat or chat.type not in ("group","supergroup") or user_obj.is_bot:
+        return
+    username=(user_obj.username or "").lower()
+    if not username:
+        return
+    try:
+        with conn() as c:
+            c.execute("""INSERT INTO group_usernames(chat_id,username,user_id,display_name)
+                VALUES(?,?,?,?) ON CONFLICT(chat_id,username) DO UPDATE SET
+                user_id=excluded.user_id,display_name=excluded.display_name""",
+                (chat.id,username,user_obj.id,user_obj.first_name or "Member"))
+    except Exception:
+        log.exception("Could not cache group username")
 
 def action_mentions(update,ctx):
     me=mention(update.effective_user); msg=update.message
@@ -543,12 +619,38 @@ async def broadcast(update,ctx):
     await update.message.reply_text(f"📢 Broadcast sent to {sent} users.")
 
 async def ban_one(update,ctx):
-    if not await group_admin(update,ctx,require_bot_admin=True): return
-    t=target(update)
-    uid=t.id if t else (int(ctx.args[0]) if ctx.args and ctx.args[0].isdigit() else None)
-    if not uid: return await update.message.reply_text("Reply to user or /ban user_id")
-    try: await ctx.bot.ban_chat_member(update.effective_chat.id,uid); await update.message.reply_text("User banned.")
-    except Exception as e: await update.message.reply_text(f"Ban failed: {e}")
+    msg=update.effective_message
+    if not await group_admin(update,ctx,require_bot_admin=True):
+        return
+    user_obj,error=await resolve_moderation_target(update,ctx,ctx.args)
+    if error:
+        return await msg.reply_text("⚠️ "+html.escape(error))
+    if not user_obj or user_obj.is_bot:
+        return await msg.reply_text("⚠️ Bots ko is command se ban nahi kiya ja sakta.")
+    if user_obj.id==update.effective_user.id or user_obj.id in OWNER_IDS:
+        return await msg.reply_text("⛔ Is user ko ban nahi kiya ja sakta.")
+    try:
+        member=await ctx.bot.get_chat_member(update.effective_chat.id,user_obj.id)
+        if member.status in ("administrator","creator"):
+            return await msg.reply_text("⛔ Group admins ko pehle admin rights se remove karo; uske baad ban possible hoga.")
+        await ctx.bot.ban_chat_member(update.effective_chat.id,user_obj.id)
+        return await msg.reply_text(
+            "🚫 <b>USER BANNED</b>\n"
+            f"👤 User: {mention(user_obj)}\n"
+            f"🆔 ID: <code>{user_obj.id}</code>\n"
+            f"📍 Group: <b>{html.escape(update.effective_chat.title or 'this group')}</b>\n"
+            f"🛡️ Action by: {mention(update.effective_user)}",
+            parse_mode="HTML")
+    except Exception as exc:
+        log.exception("Ban failed in chat %s for user %s",update.effective_chat.id,user_obj.id)
+        reason=str(exc).lower()
+        if "not enough rights" in reason or "administrator rights" in reason:
+            message="Bot ke paas ban members permission nahi hai. Use group admin bana kar 'Ban users' permission enable karo."
+        elif "user not found" in reason or "participant_id_invalid" in reason:
+            message="Telegram is user ko is group mein verify nahi kar paaya."
+        else:
+            message="Telegram ne ban request reject kar di. Bot admin permissions aur target status check karo."
+        return await msg.reply_text("❌ <b>BAN FAILED</b>\n"+html.escape(message),parse_mode="HTML")
 
 async def banall(update,ctx):
     if update.effective_user.id not in OWNER_IDS or update.effective_chat.type not in ("group","supergroup"): return
@@ -585,11 +687,23 @@ async def banall_confirm(update,ctx):
     await q.edit_message_text(f"Bulk moderation finished. Banned {count} tracked member(s).")
 
 async def unban_one(update,ctx):
-    if not await group_admin(update,ctx,require_bot_admin=True): return
-    t=target(update); uid=t.id if t else (int(ctx.args[0]) if ctx.args and ctx.args[0].isdigit() else None)
-    if not uid: return await update.message.reply_text("Reply to user or send /unban user_id")
-    try: await ctx.bot.unban_chat_member(update.effective_chat.id,uid,only_if_banned=True); await update.message.reply_text("Unbanned.")
-    except Exception as e: await update.message.reply_text(f"Unban failed: {e}")
+    msg=update.effective_message
+    if not await group_admin(update,ctx,require_bot_admin=True):
+        return
+    user_obj,error=await resolve_moderation_target(update,ctx,ctx.args)
+    if error:
+        return await msg.reply_text("⚠️ "+html.escape(error))
+    try:
+        await ctx.bot.unban_chat_member(update.effective_chat.id,user_obj.id,only_if_banned=True)
+        return await msg.reply_text(
+            "✅ <b>USER UNBANNED</b>\n"
+            f"👤 User: {mention(user_obj)}\n"
+            f"🆔 ID: <code>{user_obj.id}</code>\n"
+            f"📍 Group: <b>{html.escape(update.effective_chat.title or 'this group')}</b>",
+            parse_mode="HTML")
+    except Exception:
+        log.exception("Unban failed in chat %s",update.effective_chat.id)
+        return await msg.reply_text("❌ Telegram unban request fail kar gaya. Bot permissions aur user ID check karo.")
 
 async def say(update,ctx):
     if update.effective_user.id not in OWNER_IDS or not ctx.args: return
@@ -1245,6 +1359,7 @@ def build_application():
     for name,fn in commands.items(): app.add_handler(CommandHandler(name,fn))
     group_names=("kick","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","rules","filterlist","setrules","filters","delfilters","filterlist","addblacklist","removeblock","blocklist","approve","unapprove","setwelcome","delsetwelcome","endgame","truth","dare","tr","google","game","join","info","developer","ping","commands")
     for name in group_names: app.add_handler(CommandHandler(name,safe_group_tools))
+    app.add_handler(MessageHandler(filters.ChatType.GROUPS & filters.TEXT & ~filters.COMMAND,remember_group_user),group=0)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,group_text_tools),group=1)
     for name in ACTIONS:
         app.add_handler(CommandHandler(name,action))
