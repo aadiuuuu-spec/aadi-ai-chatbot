@@ -274,49 +274,80 @@ async def remove_sticker(update,ctx):
     await update.message.reply_text(f"🗑️ /{action} se {n} sticker remove hue.")
 
 def menu():
+    # Telegram does not expose button-colour controls; blue diamond accents provide a consistent visual theme.
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎮 HOW TO PLAY?",callback_data="how"),InlineKeyboardButton("🔥 FEATURES",callback_data="hot")],
-        [InlineKeyboardButton("🎯 ACTIONS",callback_data="actions"),InlineKeyboardButton("💰 ECONOMY",callback_data="eco")],
-        [InlineKeyboardButton("🧩 PUZZLES",callback_data="puz"),InlineKeyboardButton("🎮 GAMES",callback_data="games")],
-        [InlineKeyboardButton("👤 PROFILE",callback_data="profile"),InlineKeyboardButton("📜 COMMANDS",callback_data="commands")],
-        [InlineKeyboardButton("👨‍💻 DEVELOPER",url="https://t.me/II_YUTA_II")]])
+        [InlineKeyboardButton("🔹 HOW TO USE",callback_data="how"),InlineKeyboardButton("🔹 FEATURES",callback_data="hot")],
+        [InlineKeyboardButton("🔹 ACTIONS",callback_data="actions"),InlineKeyboardButton("🔹 ECONOMY",callback_data="eco")],
+        [InlineKeyboardButton("🔹 PUZZLES",callback_data="puz"),InlineKeyboardButton("🔹 GAMES",callback_data="games")],
+        [InlineKeyboardButton("🔹 PROFILE",callback_data="profile"),InlineKeyboardButton("🔹 COMMANDS",callback_data="commands")],
+        [InlineKeyboardButton("🔹 DEVELOPER",url="https://t.me/II_YUTA_II")]])
 
-HOT=("🔥 <b>DISHA FEATURES</b>\n• Custom sticker add/remove\n• Coins, daily, work, give and rob\n"
-     "• Fictional game elimination/revive/protection\n• XP, levels, streaks, leaderboards\n"
-     "• Puzzles and Tic-Tac-Toe\n• Mention actions and sticker replies\n• Hinglish AI chat\n"
-     "• Image-based fictional character finder\n• Owner broadcast tools")
+HOT=("🔷 <b>DISHA — FEATURE OVERVIEW</b>\n\n"
+     "<b>1. AI Conversation</b>\nChat naturally with Disha in private. In groups, mention <b>Disha</b>, use the bot username, or reply to one of her messages.\n\n"
+     "<b>2. Social Actions &amp; Stickers</b>\nUse reactions such as /hug, /love, /laugh and /wow. Reply to a member to direct an action at them. Disha can also respond to sticker messages.\n\n"
+     "<b>3. Friends &amp; Tags</b>\nSave members with /addf, organise them using tags, mention selected friends with /tag or /t, and manage them with /ctag, /delf, /allf and /friend.\n\n"
+     "<b>4. Virtual Economy</b>\nEarn coins with /daily and /work, check /bal, transfer coins with /give, and use the game features /rob and /protect.\n\n"
+     "<b>5. Progress &amp; Rankings</b>\nEarn XP through activity, increase your level, maintain a daily streak, and compare progress using /rank, /level, /xp, /streak, /leaderboard and /top.\n\n"
+     "<b>6. Games &amp; Puzzles</b>\nTry /puzzle or challenge a group member with /tictactoe.\n\n"
+     "<b>7. Image Recognition</b>\nUse /waifu with an image or reply to an image to ask for a likely fictional character and series. Results may be uncertain.\n\n"
+     "<b>8. Group Utilities</b>\nCheck administrators with /admin or /admins and send a report to admins with /report.\n\n"
+     "<b>9. Owner Tools</b>\nThe owner has access to moderation, broadcast, message and custom-sticker management commands.\n\n"
+     "<blockquote>Important: Coins, robbery, elimination, revival and protection are virtual game mechanics. They do not affect real accounts or people.</blockquote>")
 
 async def start(update,ctx):
     r=touch(update.effective_user)
     await update.message.reply_text(
-        f"✦ <b>D I S H A / AI COMPANION</b>\nHey {html.escape(update.effective_user.first_name or 'there')}! Main Disha hoon. ✨\n"
-        f"━━━━━━━━━━━━━━━━━━\n💰 <b>{r['coins']}</b> coins · ⭐ <b>LV {r['level']}</b> · 🔥 <b>{r['streak']}</b> streak\n\n"
-        "<i>Choose a section or just message me.</i>",parse_mode=ParseMode.HTML,reply_markup=menu())
+        f"🔷 <b>DISHA | AI COMPANION</b>\nWelcome, {html.escape(update.effective_user.first_name or 'there')}.\n"
+        f"━━━━━━━━━━━━━━━━━━\n💰 <b>{r['coins']}</b> coins  ·  ⭐ <b>Level {r['level']}</b>  ·  🔥 <b>{r['streak']}</b>-day streak\n\n"
+        "<blockquote>Start a conversation by sending a message, or choose a section below to explore Disha's features.</blockquote>",parse_mode=ParseMode.HTML,reply_markup=menu())
     await sticker(ctx.bot,"welcome",update.effective_chat.id)
 
 async def buttons(update,ctx):
     q=update.callback_query; await q.answer(); d=q.data; r=user(q.from_user)
     pages={
         "hot":HOT,
-        "how":"🎮 <b>HOW TO PLAY</b>\n\nReply to someone with /hug or /wow. Earn coins with /daily and /work. /rob, /kill and /revive are fictional game mechanics. Reply to a user with /tictactoe.",
-        "actions":"🎯 <b>ACTIONS</b>\n\n"+" ".join("/"+x for x in ACTIONS),
-        "eco":"💰 <b>ECONOMY</b>\n\n/bal /daily /work /give /rob /protect /top",
-        "puz":"🧩 <b>PUZZLES</b>\n\n/puzzle — answer bhejo; correct answer par coins milenge.",
-        "games":"🎮 <b>GAMES</b>\n\n/tictactoe — kisi user ke message par reply karke start karo.",
-        "profile":f"👤 <b>{html.escape(r['name'] or 'User')}</b>\n💰 {r['coins']}\n⭐ Level {r['level']}\n✨ XP {r['xp']}\n🔥 Streak {r['streak']}",
-        "commands":"📜 <b>COMMANDS</b>\n/start /help /about /profile /bal /level /xp /rank /streak /leaderboard /daily /work /give /rob /kill /revive /protect /top /puzzle /tictactoe /waifu /broadcast\nOwner: /ban /unban /banall /say and sticker add/remove commands."}
+        "how":"🔷 <b>HOW TO USE DISHA</b>\n\n"
+              "<b>Private chat:</b> Send any normal message to start an AI conversation.\n"
+              "<b>Group chat:</b> Mention <b>Disha</b>, mention the bot username, or reply to Disha's message.\n"
+              "<b>Targeted actions:</b> Reply to a member's message and send an action such as /hug or /wow.\n"
+              "<b>Games:</b> Reply to a member and use /tictactoe.\n"
+              "<blockquote>Tip: Use /help for a quick command index and /friends for friend-management instructions.</blockquote>",
+        "actions":"🔷 <b>SOCIAL ACTIONS</b>\nUse these commands to send a reaction or sticker:\n\n"+" ".join("/"+x for x in ACTIONS)+"\n\n<blockquote>Reply to a member's message to direct an action at that person. Some actions also support a name after the command.</blockquote>",
+        "eco":"🔷 <b>VIRTUAL ECONOMY</b>\n/bal — view your coin balance\n/daily — claim a daily reward (24-hour cooldown)\n/work — earn coins (30-minute cooldown)\n/give amount — transfer coins by replying to a member\n/rob — attempt a virtual coin heist by replying to a member\n/protect — activate in-game protection\n/top — view the coin leaderboard\n\n<blockquote>All coins are in-bot points and have no cash value.</blockquote>",
+        "puz":"🔷 <b>PUZZLES</b>\n/puzzle — receive a puzzle and submit your answer in the chat.\n\n<blockquote>A correct answer awards virtual coins. Use /puzzle again to request another puzzle.</blockquote>",
+        "games":"🔷 <b>GAMES</b>\n/tictactoe — reply to another member's message to start a Tic-Tac-Toe match.\n/kill, /revive, /protect and /rob — virtual game mechanics.\n\n<blockquote>These commands are fictional gameplay only; they do not cause real-world harm.</blockquote>",
+        "profile":f"🔷 <b>YOUR PROFILE</b>\n👤 Name: <b>{html.escape(r['name'] or 'User')}</b>\n💰 Coins: <b>{r['coins']}</b>\n⭐ Level: <b>{r['level']}</b>\n✨ XP: <b>{r['xp']}</b>\n🔥 Daily streak: <b>{r['streak']}</b>\n💀 Game eliminations: <b>{r['kills']}</b>  ·  ☠️ Game losses: <b>{r['deaths']}</b>",
+        "commands":"🔷 <b>COMMAND DIRECTORY</b>\n\n<b>Core:</b> /start /help /about /profile\n<b>Progress:</b> /bal /level /xp /rank /streak /leaderboard\n<b>Economy:</b> /daily /work /give /rob /protect /top\n<b>Games:</b> /kill /revive /puzzle /tictactoe\n<b>Image:</b> /waifu\n<b>Friends:</b> /addf /tag /t /ctag /delf /allf /friend /friends /setemoji\n<b>Group tools:</b> /admin /admins /report\n<b>Social actions:</b> "+" ".join("/"+x for x in ACTIONS)+"\n<b>Owner-only:</b> /broadcast /ban /unban /banall /say and custom-sticker add/remove commands.\n\n<blockquote>Some commands require a reply to another member. Use /friends for detailed friend commands.</blockquote>"}
     if d=="back":
-        return await q.edit_message_text("✦ <b>D I S H A / AI COMPANION</b>\nChoose a section:",parse_mode=ParseMode.HTML,reply_markup=menu())
+        return await q.edit_message_text("🔷 <b>DISHA | MAIN MENU</b>\nChoose a section to continue:",parse_mode=ParseMode.HTML,reply_markup=menu())
     await q.edit_message_text(pages.get(d,"Disha is here!"),parse_mode=ParseMode.HTML,
-        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back",callback_data="back")]]))
+        reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("🔹 BACK TO MENU",callback_data="back")]]))
 
 async def help_cmd(update,ctx):
     touch(update.effective_user)
-    await update.message.reply_text("/start /help /about /profile /bal /level /xp /rank /streak /leaderboard /daily /work /give /rob /kill /revive /protect /top /puzzle /tictactoe /waifu\nActions: "+" ".join("/"+x for x in ACTIONS)+"\nPrivate chat mein normal message bhejo for AI chat.")
+    await update.message.reply_text(
+        "🔷 <b>DISHA — QUICK HELP</b>\n\n"
+        "<b>Start:</b> /start  ·  /about  ·  /profile\n"
+        "<b>Progress:</b> /bal  ·  /level  ·  /xp  ·  /rank  ·  /streak  ·  /leaderboard\n"
+        "<b>Economy:</b> /daily  ·  /work  ·  /give  ·  /rob  ·  /protect  ·  /top\n"
+        "<b>Games:</b> /puzzle  ·  /tictactoe  ·  /kill  ·  /revive\n"
+        "<b>Friends:</b> /addf  ·  /tag  ·  /t  ·  /ctag  ·  /delf  ·  /allf  ·  /friend  ·  /friends  ·  /setemoji\n"
+        "<b>Group:</b> /admin  ·  /admins  ·  /report\n"
+        "<b>Image:</b> /waifu\n"
+        "<b>Actions:</b> "+" ".join("/"+x for x in ACTIONS)+"\n\n"
+        "<blockquote>Private chat: send a normal message to talk with Disha. Groups: mention Disha or reply to her message.</blockquote>\n"
+        "Use /friends for detailed friend-management instructions.",
+        parse_mode=ParseMode.HTML)
 
 async def about(update,ctx):
     kb=InlineKeyboardMarkup([[InlineKeyboardButton("👨‍💻 DEVELOPER PROFILE",url="https://t.me/II_YUTA_II")]])
-    await update.message.reply_text("✦ <b>DISHA AI</b>\nYour friendly Hinglish AI companion.\n\n👑 Owner: <b>Aditya</b>\n🔗 Username: <b>@II_YUTA_II</b>\n\n<i>Tap below to open the developer's Telegram profile.</i>",parse_mode="HTML",reply_markup=kb)
+    await update.message.reply_text(
+        "🔷 <b>ABOUT DISHA</b>\n\n"
+        "Disha is an AI-powered Telegram companion with conversational chat, social actions, custom stickers, friend tags, virtual economy, games, puzzles and group utilities.\n\n"
+        "👑 <b>Developer:</b> Aditya\n🔗 <b>Telegram:</b> @II_YUTA_II\n\n"
+        "<blockquote>Note: Telegram controls the actual message typeface and inline-button colours. Disha uses clear formatting and blue visual accents for a consistent interface.</blockquote>\n"
+        "<i>Use the button below to open the developer profile.</i>",
+        parse_mode="HTML",reply_markup=kb)
 
 async def profile(update,ctx):
     r=touch(update.effective_user)
