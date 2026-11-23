@@ -295,9 +295,9 @@ HOT=("🔷 <b>DISHA — FEATURE OVERVIEW</b>\n\n"
 async def start(update,ctx):
     r=touch(update.effective_user)
     await update.message.reply_text(
-        f"🔷 <b>DISHA | AI COMPANION</b>\nWelcome, {html.escape(update.effective_user.first_name or 'there')}.\n"
-        f"━━━━━━━━━━━━━━━━━━\n💰 <b>{r['coins']}</b> coins  ·  ⭐ <b>Level {r['level']}</b>  ·  🔥 <b>{r['streak']}</b>-day streak\n\n"
-        "<blockquote>Start a conversation by sending a message, or choose a section below to explore Disha's features.</blockquote>",parse_mode=ParseMode.HTML,reply_markup=menu())
+        f"🔷 <b>ᴅɪsʜᴀ | ᴀɪ ᴄᴏᴍᴘᴀɴɪᴏɴ</b>\nᴡᴇʟᴄᴏᴍᴇ, {html.escape(update.effective_user.first_name or 'there')} .\n"
+        f"━━━━━━━━━━━━━━━━━━\n💰 <b>{r['coins']}</b> ᴄᴏɪɴs  ·  ⭐ <b>ʟᴇᴠᴇʟ {r['level']}</b>  ·  🔥 <b>{r['streak']}</b>-ᴅᴀʏ sᴛʀᴇᴀᴋ\n\n"
+        "<blockquote>sᴛᴀʀᴛ ᴀ ᴄᴏɴᴠᴇʀsᴀᴛɪᴏɴ ʙʏ sᴇɴᴅɪɴɢ ᴀ ᴍᴇssᴀɢᴇ, ᴏʀ ᴄʜᴏᴏsᴇ ᴀ sᴇᴄᴛɪᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴇxᴘʟᴏʀᴇ ᴅɪsʜᴀ's ғᴇᴀᴛᴜʀᴇs.</blockquote>",parse_mode=ParseMode.HTML,reply_markup=menu())
     await sticker(ctx.bot,"welcome",update.effective_chat.id)
 
 async def buttons(update,ctx):
