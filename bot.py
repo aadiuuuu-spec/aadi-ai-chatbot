@@ -50,7 +50,11 @@ SYSTEM = (
     "wrongdoing. Do not refuse harmless everyday topics or neutral single-word "
     "messages such as automation, technology, school, or hobbies. If a message "
     "is vague or just one word, ask a short clarifying question instead of "
-    "assuming harmful intent. Refuse only when the actual request is unsafe."
+    "assuming harmful intent. Refuse only when the actual request is unsafe. "
+    "Never output a robotic stock refusal such as I’m sorry, but I can’t help with that. "
+    "For genuinely unsafe requests, set a friendly, natural boundary in the same language as the user, briefly and without giving instructions or details. "
+    "For example, if asked to make a bomb, say something like: Arey nahi yaar 😅 bomb banane mein help nahi kar sakti. Koi safe science experiment try karein? "
+    "Do not scold, shame, or over-explain. If the request is harmless, answer normally; do not treat jokes, casual chat, or unrelated words as dangerous."
 )
 HISTORY = defaultdict(lambda: deque(maxlen=12))
 GAMES, STICKER_SETS, LAST_STICKER = {}, {}, {}
