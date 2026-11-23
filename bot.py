@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 from telegram import BotCommand, BotCommandScopeDefault, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats, Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity
+from telegram.ext import ChatMemberHandler
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
@@ -632,6 +633,33 @@ async def sticker_reply(update,ctx):
         await ctx.bot.send_sticker(cid,random.choice(STICKER_SETS[st.set_name]),reply_to_message_id=msg.message_id)
     except Exception: log.exception("Sticker reply failed")
 
+
+async def member_left(update, ctx):
+    change = update.chat_member
+    if not change:
+        return
+    old_status = change.old_chat_member.status
+    new_status = change.new_chat_member.status
+    # Only announce voluntary departures; bans/removals are not treated as leaving.
+    if new_status != "left" or old_status in ("left", "kicked"):
+        return
+    departed = change.new_chat_member.user
+    display = html.escape(departed.full_name or departed.first_name or "Member")
+    username = f"@{html.escape(departed.username)}" if departed.username else "—"
+    message = (
+        "🚪 <b>Member Left</b>\n\n"
+        f"👤 <b>Name:</b> {display}\n"
+        f"🆔 <b>ID:</b> <code>{departed.id}</code>\n"
+        f"🔖 <b>Username:</b> {username}\n\n"
+        "👋 <i>Goodbye! Take care.</i>"
+    )
+    await ctx.bot.send_message(
+        chat_id=update.effective_chat.id,
+        text=message,
+        parse_mode="HTML",
+        disable_web_page_preview=True,
+    )
+
 def pick_image(m):
     if not m: return None
     if m.photo: return m.photo[-1].file_id,"image/jpeg"
@@ -879,6 +907,7 @@ def build_application():
         app.add_handler(CommandHandler(name,action))
         app.add_handler(CommandHandler("add"+name,add_sticker))
         app.add_handler(CommandHandler("remove"+name,remove_sticker))
+    app.add_handler(ChatMemberHandler(member_left, ChatMemberHandler.CHAT_MEMBER))
     app.add_handler(CallbackQueryHandler(banall_confirm,pattern=r"^banall:(yes|no)$"))
     app.add_handler(CallbackQueryHandler(ttt_move,pattern=r"^ttt:"))
     app.add_handler(CallbackQueryHandler(buttons,pattern=r"^(how|hot|actions|eco|puz|games|profile|commands|back)$"))
