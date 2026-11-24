@@ -624,7 +624,7 @@ async def ban_one(update,ctx):
         return
     user_obj,error=await resolve_moderation_target(update,ctx,ctx.args)
     if error:
-        return await msg.reply_text("⚠️ "+html.escape(error))
+        return await msg.reply_text("⚠️ <b>UNBAN NOT COMPLETED</b>\n"+html.escape(error),parse_mode="HTML")
     if not user_obj or user_obj.is_bot:
         return await msg.reply_text("⚠️ Bots ko is command se ban nahi kiya ja sakta.")
     if user_obj.id==update.effective_user.id or user_obj.id in OWNER_IDS:
@@ -703,7 +703,7 @@ async def unban_one(update,ctx):
             parse_mode="HTML")
     except Exception:
         log.exception("Unban failed in chat %s",update.effective_chat.id)
-        return await msg.reply_text("❌ Telegram unban request fail kar gaya. Bot permissions aur user ID check karo.")
+        return await msg.reply_text("❌ <b>UNBAN FAILED</b>\nTelegram could not complete the request. Verify the user ID and Disha's administrator permissions.",parse_mode="HTML")
 
 async def say(update,ctx):
     if update.effective_user.id not in OWNER_IDS or not ctx.args: return
@@ -1054,22 +1054,22 @@ def group_state(chat_id, key, value=None, write=False):
 async def group_admin(update, ctx, require_bot_admin=False):
     chat=update.effective_chat; msg=update.effective_message
     if not chat or chat.type not in ("group","supergroup"):
-        if msg: await msg.reply_text("Yeh command group mein use karo.")
+        if msg: await msg.reply_text("This command can only be used in a group.")
         return False
     try:
         is_bot_owner=update.effective_user.id in OWNER_IDS
         if not is_bot_owner:
             member=await ctx.bot.get_chat_member(chat.id,update.effective_user.id)
             if member.status not in ("administrator","creator"):
-                await msg.reply_text("⛔ <b>ACCESS DENIED</b>\\nThis command is restricted to group administrators.",parse_mode="HTML")
+                await msg.reply_text("⛔ <b>ACCESS DENIED</b>\nThis command is restricted to group administrators.",parse_mode="HTML")
                 return False
         if require_bot_admin:
             bot_member=await ctx.bot.get_chat_member(chat.id,ctx.bot.id)
             if bot_member.status!="administrator":
-                await msg.reply_text("⛔ <b>BOT PERMISSION REQUIRED</b>\\nDisha must be an administrator in this group before this action can be performed.",parse_mode="HTML")
+                await msg.reply_text("⛔ <b>BOT PERMISSION REQUIRED</b>\nDisha must be an administrator in this group before this action can be performed.",parse_mode="HTML")
                 return False
     except Exception:
-        await msg.reply_text("⚠️ <b>PERMISSION CHECK FAILED</b>\\nTelegram could not verify the administrator permissions. Please try again.",parse_mode="HTML")
+        await msg.reply_text("⚠️ <b>PERMISSION CHECK FAILED</b>\nTelegram could not verify the administrator permissions. Please try again.",parse_mode="HTML")
         return False
     return True
 
@@ -1095,13 +1095,13 @@ async def group_tools(update,ctx):
         if error:
             return await msg.reply_text("⚠️ <b>KICK NOT COMPLETED</b>\n"+html.escape(error),parse_mode="HTML")
         if not user_obj or user_obj.is_bot:
-            return await msg.reply_text("⚠️ <b>ACTION NOT ALLOWED</b>\\nBot accounts cannot be removed with this command.",parse_mode="HTML")
+            return await msg.reply_text("⚠️ <b>ACTION NOT ALLOWED</b>\nBot accounts cannot be removed with this command.",parse_mode="HTML")
         if user_obj.id==update.effective_user.id or user_obj.id in OWNER_IDS:
-            return await msg.reply_text("⛔ <b>ACTION DENIED</b>\\nYou cannot kick yourself or a protected bot owner.",parse_mode="HTML")
+            return await msg.reply_text("⛔ <b>ACTION DENIED</b>\nYou cannot kick yourself or a protected bot owner.",parse_mode="HTML")
         try:
             member=await ctx.bot.get_chat_member(chat.id,user_obj.id)
             if member.status in ("administrator","creator"):
-                return await msg.reply_text("⛔ <b>KICK DENIED</b>\nAdmin ko kick karne se pehle uske admin rights remove karo.",parse_mode="HTML")
+                return await msg.reply_text("⛔ <b>KICK DENIED</b>\nRemove the member's administrator rights before attempting to kick them.",parse_mode="HTML")
             await ctx.bot.ban_chat_member(chat.id,user_obj.id)
             await ctx.bot.unban_chat_member(chat.id,user_obj.id,only_if_banned=True)
             return await msg.reply_text(
@@ -1120,20 +1120,20 @@ async def group_tools(update,ctx):
     if cmd=="ban":
         await ctx.bot.ban_chat_member(chat.id,target_user.id)
         return await msg.reply_text(
-            "🚫 <b>USER BANNED</b>\\n"
-            f"👤 <b>Member:</b> {mention(target_user)}\\n"
-            f"🆔 <b>User ID:</b> <code>{target_user.id}</code>\\n"
-            f"📍 <b>Group:</b> {html.escape(chat.title or 'Group')}\\n"
+            "🚫 <b>USER BANNED</b>\n"
+            f"👤 <b>Member:</b> {mention(target_user)}\n"
+            f"🆔 <b>User ID:</b> <code>{target_user.id}</code>\n"
+            f"📍 <b>Group:</b> {html.escape(chat.title or 'Group')}\n"
             f"🛡️ <b>Action by:</b> {mention(update.effective_user)}",
             parse_mode="HTML")
     if cmd=="unban":
         uid=int(args[0]) if args and args[0].isdigit() else (target_user.id if target_user else None)
-        if not uid: return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\\nReply to the member's message or provide a valid Telegram user ID.",parse_mode="HTML")
+        if not uid: return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\nReply to the member's message or provide a valid Telegram user ID.",parse_mode="HTML")
         await ctx.bot.unban_chat_member(chat.id,uid,only_if_banned=True)
         return await msg.reply_text(
-            "✅ <b>USER UNBANNED</b>\\n"
-            f"🆔 <b>User ID:</b> <code>{uid}</code>\\n"
-            f"📍 <b>Group:</b> {html.escape(chat.title or 'Group')}\\n"
+            "✅ <b>USER UNBANNED</b>\n"
+            f"🆔 <b>User ID:</b> <code>{uid}</code>\n"
+            f"📍 <b>Group:</b> {html.escape(chat.title or 'Group')}\n"
             f"🛡️ <b>Action by:</b> {mention(update.effective_user)}",
             parse_mode="HTML")
     if cmd in {"mute","unmute"}:
@@ -1145,16 +1145,16 @@ async def group_tools(update,ctx):
             from datetime import timedelta, timezone
             await ctx.bot.restrict_chat_member(chat.id,target_user.id,permissions=__import__("telegram").ChatPermissions(can_send_messages=False),until_date=datetime.now(timezone.utc)+timedelta(seconds=seconds))
             return await msg.reply_text(
-                "🔇 <b>USER MUTED</b>\\n"
-                f"👤 <b>Member:</b> {mention(target_user)}\\n"
-                f"⏱️ <b>Duration:</b> {seconds//60} minute(s)\\n"
+                "🔇 <b>USER MUTED</b>\n"
+                f"👤 <b>Member:</b> {mention(target_user)}\n"
+                f"⏱️ <b>Duration:</b> {seconds//60} minute(s)\n"
                 f"🛡️ <b>Action by:</b> {mention(update.effective_user)}",
                 parse_mode="HTML")
         from telegram import ChatPermissions
         await ctx.bot.restrict_chat_member(chat.id,target_user.id,permissions=ChatPermissions(can_send_messages=True,can_send_audios=True,can_send_documents=True,can_send_photos=True,can_send_videos=True,can_send_video_notes=True,can_send_voice_notes=True,can_send_polls=True,can_send_other_messages=True,can_add_web_page_previews=True))
         return await msg.reply_text(
-            "🔊 <b>USER UNMUTED</b>\\n"
-            f"👤 <b>Member:</b> {mention(target_user)}\\n"
+            "🔊 <b>USER UNMUTED</b>\n"
+            f"👤 <b>Member:</b> {mention(target_user)}\n"
             f"🛡️ <b>Action by:</b> {mention(update.effective_user)}",
             parse_mode="HTML")
     if cmd=="warn":
@@ -1162,22 +1162,22 @@ async def group_tools(update,ctx):
             c.execute("INSERT INTO group_warns(chat_id,user_id,warnings) VALUES(?,?,1) ON CONFLICT(chat_id,user_id) DO UPDATE SET warnings=warnings+1",(chat.id,target_user.id))
             n=c.execute("SELECT warnings FROM group_warns WHERE chat_id=? AND user_id=?",(chat.id,target_user.id)).fetchone()["warnings"]
         return await msg.reply_text(
-            "⚠️ <b>WARNING ISSUED</b>\\n"
-            f"👤 <b>Member:</b> {mention(target_user)}\\n"
-            f"📊 <b>Total warnings:</b> {n}\\n"
+            "⚠️ <b>WARNING ISSUED</b>\n"
+            f"👤 <b>Member:</b> {mention(target_user)}\n"
+            f"📊 <b>Total warnings:</b> {n}\n"
             f"🛡️ <b>Issued by:</b> {mention(update.effective_user)}",
             parse_mode="HTML")
     if cmd in {"warnings","resetwarns"}:
         t=target_user
-        if not t: return await msg.reply_text("User ke message par reply karo.")
+        if not t: return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\nReply to the member's message and run this command again.",parse_mode="HTML")
         with conn() as c:
             if cmd=="resetwarns":
                 c.execute("DELETE FROM group_warns WHERE chat_id=? AND user_id=?",(chat.id,t.id))
-                return await msg.reply_text("✅ <b>WARNINGS RESET</b>\\nThe member's warning count has been cleared.",parse_mode="HTML")
+                return await msg.reply_text("✅ <b>WARNINGS RESET</b>\nThe member's warning count has been cleared.",parse_mode="HTML")
             r=c.execute("SELECT warnings FROM group_warns WHERE chat_id=? AND user_id=?",(chat.id,t.id)).fetchone()
         return await msg.reply_text(
-            "📋 <b>WARNING SUMMARY</b>\\n"
-            f"👤 <b>Member:</b> {mention(t)}\\n"
+            "📋 <b>WARNING SUMMARY</b>\n"
+            f"👤 <b>Member:</b> {mention(t)}\n"
             f"📊 <b>Total warnings:</b> {r['warnings'] if r else 0}",
             parse_mode="HTML")
     if cmd in {"promote","demote"}:
@@ -1187,7 +1187,7 @@ async def group_tools(update,ctx):
             await ctx.bot.promote_chat_member(chat.id,target_user.id,can_manage_chat=False,can_delete_messages=False,can_restrict_members=False,can_invite_users=False,can_pin_messages=False,can_promote_members=False)
         return await msg.reply_text(
             ("👑 <b>ADMIN RIGHTS GRANTED</b>" if cmd=="promote" else "🛡️ <b>ADMIN RIGHTS REMOVED</b>")+
-            f"\\n👤 <b>Member:</b> {mention(target_user)}\\n"
+            f"\n👤 <b>Member:</b> {mention(target_user)}\n"
             f"🛡️ <b>Action by:</b> {mention(update.effective_user)}",
             parse_mode="HTML")
     if cmd=="pin":
@@ -1210,14 +1210,14 @@ async def group_tools(update,ctx):
                 deleted+=1
             except Exception:
                 continue
-        await ctx.bot.send_message(chat.id,f"🧹 <b>PURGE COMPLETED</b>\\n{deleted} message(s) were successfully deleted.",parse_mode="HTML",reply_to_message_id=msg.message_id)
+        await ctx.bot.send_message(chat.id,f"🧹 <b>PURGE COMPLETED</b>\n{deleted} message(s) were successfully deleted.",parse_mode="HTML",reply_to_message_id=msg.message_id)
         return
     if cmd=="rules":
         rules=group_state(chat.id,"rules")
         return await msg.reply_text("📜 "+(rules or "Is group ke rules abhi set nahi hain."))
     if cmd=="setrules":
         if not args: return await msg.reply_text("Usage: /setrules group rules...")
-        group_state(chat.id,"rules"," ".join(args),True); return await msg.reply_text("✅ <b>GROUP RULES UPDATED</b>\\nThe new rules have been saved.",parse_mode="HTML")
+        group_state(chat.id,"rules"," ".join(args),True); return await msg.reply_text("✅ <b>GROUP RULES UPDATED</b>\nThe new rules have been saved.",parse_mode="HTML")
     if cmd=="filters":
         if not args: return await msg.reply_text("Usage: /filters keyword reply text")
         word=args[0].lower(); val=" ".join(args[1:])
@@ -1255,11 +1255,11 @@ async def group_tools(update,ctx):
         return await msg.reply_text("✅ Join request processed.")
     if cmd=="setwelcome":
         if not args: return await msg.reply_text("Usage: /setwelcome welcome message")
-        group_state(chat.id,"welcome"," ".join(args),True); return await msg.reply_text("✅ <b>WELCOME MESSAGE UPDATED</b>\\nThe new welcome message is now active.",parse_mode="HTML")
+        group_state(chat.id,"welcome"," ".join(args),True); return await msg.reply_text("✅ <b>WELCOME MESSAGE UPDATED</b>\nThe new welcome message is now active.",parse_mode="HTML")
     if cmd=="delsetwelcome":
-        group_state(chat.id,"welcome","",True); return await msg.reply_text("✅ <b>WELCOME MESSAGE REMOVED</b>\\nThe custom welcome message has been disabled.",parse_mode="HTML")
+        group_state(chat.id,"welcome","",True); return await msg.reply_text("✅ <b>WELCOME MESSAGE REMOVED</b>\nThe custom welcome message has been disabled.",parse_mode="HTML")
     if cmd=="endgame":
-        GAMES.pop(chat.id,None); return await msg.reply_text("🎮 <b>GAME ENDED</b>\\nThe active group game has been closed.",parse_mode="HTML")
+        GAMES.pop(chat.id,None); return await msg.reply_text("🎮 <b>GAME ENDED</b>\nThe active group game has been closed.",parse_mode="HTML")
     if cmd in {"truth","dare","tr"}:
         lang=(args[0].lower() if args else "en")
         truths={"en":["What is one skill you'd like to learn?","What is a small thing that makes your day better?","Which fictional world would you visit?"],
@@ -1310,7 +1310,7 @@ async def safe_group_tools(update, ctx):
         log.exception("Group command failed: %s", getattr(update.effective_message, "text", "unknown"))
         msg = update.effective_message
         if msg:
-            await msg.reply_text("❌ <b>COMMAND FAILED</b>\\nTelegram could not complete this action. Check the command format and Disha's administrator permissions, then try again.",parse_mode="HTML")
+            await msg.reply_text("❌ <b>COMMAND FAILED</b>\nTelegram could not complete this action. Check the command format and Disha's administrator permissions, then try again.",parse_mode="HTML")
 
 async def disha_error_handler(update, ctx):
     error = ctx.error
@@ -1318,7 +1318,7 @@ async def disha_error_handler(update, ctx):
     msg = getattr(update, "effective_message", None)
     if msg and msg.text and msg.text.startswith("/"):
         try:
-            await msg.reply_text("❌ <b>COMMAND ERROR</b>\\nAn unexpected error occurred while processing this command. Please try again later.",parse_mode="HTML")
+            await msg.reply_text("❌ <b>COMMAND ERROR</b>\nAn unexpected error occurred while processing this command. Please try again later.",parse_mode="HTML")
         except Exception:
             log.exception("Could not send command error notice")
 
