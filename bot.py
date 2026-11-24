@@ -43,7 +43,7 @@ SYSTEM = (
     "If someone says 'baby', 'yaar', or uses friendly teasing, respond casually "
     "without turning it into romance. No romantic roleplay, sexual content, "
     "kissing, or intimate pet names. Use occasional fitting emojis, not emoji "
-    "spam. Remember recent conversation context and never ask again for facts "
+    "spam. Track the conversation carefully across turns. Treat short messages like kyun, kaise, woh, aisa mat karo, and emotional comments as follow-ups to the immediately preceding exchange when that makes sense. Never act as if the last few messages did not happen. If the user says you changed, asks why you replied a certain way, or repeats a request, acknowledge the specific earlier exchange and respond to it directly instead of changing the subject. Remember recent conversation context and never ask again for facts "
     "already provided. If someone asks about an anime, character, show, or common "
     "topic, answer with what you know; if uncertain about a detail, say so briefly "
     "without pretending you have never heard of it. Give direct, useful answers "
@@ -198,6 +198,7 @@ def init():
         c.execute("CREATE TABLE IF NOT EXISTS group_settings(chat_id BIGINT NOT NULL,setting_key TEXT NOT NULL,setting_value TEXT,PRIMARY KEY(chat_id,setting_key))")
         c.execute("CREATE TABLE IF NOT EXISTS group_warns(chat_id BIGINT NOT NULL,user_id BIGINT NOT NULL,warnings INTEGER DEFAULT 0,PRIMARY KEY(chat_id,user_id))")
         c.execute("CREATE TABLE IF NOT EXISTS group_usernames(chat_id BIGINT NOT NULL,username TEXT NOT NULL,user_id BIGINT NOT NULL,display_name TEXT,PRIMARY KEY(chat_id,username))")
+        c.execute("CREATE TABLE IF NOT EXISTS chat_history(chat_id BIGINT NOT NULL,user_id BIGINT NOT NULL,role TEXT NOT NULL,content TEXT NOT NULL,created_at DOUBLE PRECISION NOT NULL)")
 
 def user(u):
     with conn() as c:
@@ -756,6 +757,31 @@ async def ai_reply(history,name):
         r.raise_for_status()
         return (r.json()["choices"][0]["message"].get("content") or "").strip() or "Hmm, phir se bolo?"
 
+def load_chat_history(chat_id,user_id,limit=20):
+    with conn() as c:
+        rows=c.execute(
+            "SELECT role,content FROM chat_history WHERE chat_id=? AND user_id=? ORDER BY created_at DESC LIMIT ?",
+            (chat_id,user_id,limit)
+        ).fetchall()
+    return [{"role":row["role"],"content":row["content"]} for row in reversed(rows)]
+
+def save_chat_turns(chat_id,user_id,user_text,assistant_text):
+    now=time.time()
+    with conn() as c:
+        c.execute(
+            "INSERT INTO chat_history(chat_id,user_id,role,content,created_at) VALUES(?,?,?,?,?)",
+            (chat_id,user_id,"user",user_text[:3000],now)
+        )
+        c.execute(
+            "INSERT INTO chat_history(chat_id,user_id,role,content,created_at) VALUES(?,?,?,?,?)",
+            (chat_id,user_id,"assistant",assistant_text[:4000],now+0.000001)
+        )
+        c.execute(
+            "DELETE FROM chat_history WHERE chat_id=? AND user_id=? AND created_at NOT IN "
+            "(SELECT created_at FROM chat_history WHERE chat_id=? AND user_id=? ORDER BY created_at DESC LIMIT 24)",
+            (chat_id,user_id,chat_id,user_id)
+        )
+
 async def chat_reply(update,ctx):
     msg=update.message
     if not msg or not msg.text or msg.text.startswith("/"): return
@@ -783,20 +809,21 @@ async def chat_reply(update,ctx):
             return await msg.reply_text("🎉 Correct answer! +50 coins added to your balance.")
         ctx.user_data["puzzle_answer"]=answer
         return await msg.reply_text("Not quite—ek aur try karo, ya /puzzle se naya sawaal lo.")
-    HISTORY[key].append({"role":"user","content":msg.text[:3000]})
+    history=load_chat_history(update.effective_chat.id,update.effective_user.id)
+    history.append({"role":"user","content":msg.text[:3000]})
     quick=quick_answer(msg.text,name)
     if quick:
-        HISTORY[key].append({"role":"assistant","content":quick})
+        save_chat_turns(update.effective_chat.id,update.effective_user.id,msg.text,quick)
         sent=await msg.reply_text(quick)
         await auto_reaction(ctx.bot,detect_mood(msg.text),update.effective_chat.id,msg.message_id)
         return sent
     try:
         await ctx.bot.send_chat_action(chat_id=update.effective_chat.id, action="typing")
-        answer=await ai_reply(list(HISTORY[key]),name)
+        answer=await ai_reply(history,name)
     except Exception:
-        HISTORY[key].pop(); log.exception("Groq chat request failed")
+        log.exception("Groq chat request failed")
         return await msg.reply_text("Abhi reply generate nahi ho paaya. Thodi der baad ek baar phir message karna.")
-    HISTORY[key].append({"role":"assistant","content":answer})
+    save_chat_turns(update.effective_chat.id,update.effective_user.id,msg.text,answer)
     await msg.reply_text(answer[:4000])
     await auto_reaction(ctx.bot,detect_mood(msg.text),update.effective_chat.id,msg.message_id)
 
