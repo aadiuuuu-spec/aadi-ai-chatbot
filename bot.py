@@ -5,7 +5,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 import httpx
-from telegram import BotCommand, BotCommandScopeDefault, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats, Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity
+from telegram import BotCommand, BotCommandScopeDefault, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats, Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity, ReactionTypeEmoji
 from telegram.ext import ChatMemberHandler
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
@@ -25,31 +25,25 @@ logging.basicConfig(level=os.getenv("LOG_LEVEL", "INFO"))
 log = logging.getLogger("disha")
 
 SYSTEM = (
-    "You are Disha, a lively AI companion who chats naturally like a witty, "
-    "easygoing friend in Telegram DMs. Your default voice is casual Hinglish, "
-    "but mirror the user's language and level of formality. Never sound like a "
-    "customer-support bot, school essay, therapist script, or formal assistant. "
-    "Treat each message as part of an ongoing conversation: notice the user's "
-    "mood, remember details already shared in the current chat, respond to the "
-    "subtext, and don't ask for information they already gave. "
-    "Give replies enough substance to feel attentive, not lazy or generic. For "
-    "casual chat, usually write 1-3 natural sentences; for questions, answer with "
-    "the useful detail first and add a short explanation or example when needed. "
-    "Notice details from recent chat history and refer to them naturally when "
-    "relevant. Vary sentence openings and reactions. Use Hinglish naturally when "
-    "the user does, but mirror English or Hindi when that is what they use. Use "
-    "occasional relevant emojis, never a wall of them. If the user shares a win, "
-    "react specifically; if they joke, respond with fresh harmless banter; if "
-    "they ask for an opinion, give a clear reason rather than empty agreement. "
-    "Ask a follow-up only when it genuinely helps; don't end every reply with "
-    "a question. Avoid repetitive 'hmm', 'achha', 'lol', generic offers, and "
-    "one-word filler replies. Don't repeat greetings, generic offers to help, or the same "
-    "catchphrases. If the user is upset or discussing something serious, drop the "
-    "teasing and respond calmly, respectfully, and supportively. Be honest about "
-    "being an AI; never pretend to be human, flirt, act as a romantic partner, or "
-    "use intimate pet names. Your name is Disha. If asked who made or owns you, "
-    "say your owner is Aditya (@II_YUTA_II). Don't invent personal experiences, "
-    "facts, or memories. Keep content age-appropriate and don't assist harm or "
+    "You are Disha, a lively, witty AI friend in Telegram chats. Sound like a "
+    "real, relaxed chat partner rather than ChatGPT, a helpdesk, or an essay. "
+    "Default to natural everyday Hinglish when the user uses Hinglish; mirror "
+    "their language otherwise. Keep casual replies short and spontaneous, usually "
+    "one or two lines. React to what they actually said, including teasing, jokes, "
+    "small updates, and emotions. Use playful banter when it fits, but do not "
+    "force jokes, emojis, or questions into every reply. Avoid robotic openings, "
+    "formal summaries, repeated 'hmm/achha', generic advice, and unnecessary "
+    "offers to help. Remember the recent conversation: do not ask again for facts "
+    "already given, and naturally follow up on the exact topic. If someone asks "
+    "about an anime, character, show, or common topic, answer with what you know "
+    "instead of pretending you have never heard of it; if uncertain about a detail, "
+    "say so briefly and ask which character or scene they mean. Give direct, useful "
+    "answers for actual questions, but don't turn ordinary banter into a lecture. "
+    "Use occasional fitting emojis, not emoji spam. Be honest that you are an AI; "
+    "stay friendly and playful without romantic roleplay, kissing, or intimate "
+    "pet names. Your name is Disha. If asked who made or owns you, say your owner "
+    "is Aditya (@II_YUTA_II). Do not invent personal experiences, facts, or "
+    "memories. Keep content age-appropriate and don't assist harm or wrongdoing. "
     "wrongdoing. Do not refuse harmless everyday topics or neutral single-word "
     "messages such as automation, technology, school, or hobbies. If a message "
     "is vague or just one word, ask a short clarifying question instead of "
@@ -358,23 +352,35 @@ async def sticker(bot,kind,cid,reply_id=None):
 def detect_mood(text):
     t=(text or "").lower()
     rules=[
-        ("laugh",r"\b(lol|lmao|haha+|hehe+|rofl|funny|joke|😂|🤣|😭)\b"),
-        ("wow",r"\b(wow|omg|seriously|really|shocked|surprise|unbelievable|wtf|what)\b|😱|😳|🤯"),
+        ("laugh",r"\b(lol|lmao|haha+|hehe+|rofl|funny|joke|😂|🤣)\b|😂|🤣"),
+        ("wow",r"\b(wow|omg|seriously|really|shocked|surprise|unbelievable)\b|😱|😳|🤯"),
         ("sad",r"\b(sad|udaas|dukhi|upset|unhappy|lonely|miss you|bura lag|cry|rona)\b|😔|😢|🥺|😭"),
-        ("happy",r"\b(happy|khush|great|awesome|amazing|yay|congrats|congratulations|nice|good news)\b|🥳|🤩|😊"),
-        ("care",r"\b(thank you|thanks|shukriya|help|care|take care|support)\b|🫶|🤗"),
-        ("excited",r"\b(excited|can't wait|cant wait|lets go|let's go|finally)\b|🔥|🤩")
+        ("care",r"\b(thank you|thanks|shukriya|proud of you|well done|good job|you helped)\b|🫶|🤗"),
+        ("excited",r"\b(excited|can't wait|cant wait|lets go|let's go|finally|congratulations|congrats|yaaay)\b|🔥|🥳|🤩"),
+        ("happy",r"\b(happy|khush|great|awesome|amazing|nice|good news|cute|lovely|perfect|beautiful)\b|😊|😁|🥰")
     ]
     for kind,pattern in rules:
         if re.search(pattern,t,re.I): return kind
     return None
 
+REACTION_EMOJI = {
+    "laugh":"😂", "wow":"🤯", "sad":"😔", "care":"🫶",
+    "excited":"🔥", "happy":"❤️"
+}
+
 async def auto_reaction(bot,kind,cid,reply_id):
-    if not kind: return
+    emoji=REACTION_EMOJI.get(kind)
+    if not emoji: return
     now=time.time()
-    if now-LAST_AUTO_STICKER.get(cid,0)<18: return
+    if now-LAST_AUTO_STICKER.get(cid,0)<8: return
     LAST_AUTO_STICKER[cid]=now
-    await sticker(bot,kind,cid,reply_id)
+    try:
+        await bot.set_message_reaction(
+            chat_id=cid, message_id=reply_id,
+            reaction=[ReactionTypeEmoji(emoji=emoji)]
+        )
+    except Exception:
+        log.debug("Telegram emoji reaction unavailable for chat %s",cid,exc_info=True)
 
 async def add_sticker(update,ctx):
     if update.effective_user.id not in OWNER_IDS: return await update.message.reply_text("⛔ Owner only.")
