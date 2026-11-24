@@ -1192,15 +1192,15 @@ async def group_tools(update,ctx):
             parse_mode="HTML")
     if cmd=="pin":
         m=msg.reply_to_message
-        if not m: return await msg.reply_text("Jis message ko pin karna hai us par reply karo.")
-        await ctx.bot.pin_chat_message(chat.id,m.message_id); return await msg.reply_text("📌 Message pinned.")
+        if not m: return await msg.reply_text("⚠️ <b>MESSAGE REQUIRED</b>\nReply to the message you want to pin, then run /pin.",parse_mode="HTML")
+        await ctx.bot.pin_chat_message(chat.id,m.message_id); return await msg.reply_text("📌 <b>MESSAGE PINNED</b>\nThe selected message has been pinned successfully.",parse_mode="HTML")
     if cmd=="unpin":
         m=msg.reply_to_message
         if m: await ctx.bot.unpin_chat_message(chat.id,m.message_id)
         else: await ctx.bot.unpin_all_chat_messages(chat.id)
-        return await msg.reply_text("📌 Pin removed.")
+        return await msg.reply_text("📌 <b>PIN REMOVED</b>\nThe pinned message has been removed.",parse_mode="HTML")
     if cmd=="purge":
-        if not msg.reply_to_message: return await msg.reply_text("Purge start message par reply karo.")
+        if not msg.reply_to_message: return await msg.reply_text("⚠️ <b>MESSAGE RANGE REQUIRED</b>\nReply to the earliest message you want to delete, then run /purge.",parse_mode="HTML")
         start=msg.reply_to_message.message_id; end=msg.message_id
         ids=list(range(start,end+1))[-100:]
         deleted=0
@@ -1214,23 +1214,23 @@ async def group_tools(update,ctx):
         return
     if cmd=="rules":
         rules=group_state(chat.id,"rules")
-        return await msg.reply_text("📜 "+(rules or "Is group ke rules abhi set nahi hain."))
+        return await msg.reply_text("📜 <b>GROUP RULES</b>\n"+html.escape(rules or "No group rules have been configured yet."),parse_mode="HTML")
     if cmd=="setrules":
-        if not args: return await msg.reply_text("Usage: /setrules group rules...")
+        if not args: return await msg.reply_text("Usage: /setrules Your group rules...")
         group_state(chat.id,"rules"," ".join(args),True); return await msg.reply_text("✅ <b>GROUP RULES UPDATED</b>\nThe new rules have been saved.",parse_mode="HTML")
     if cmd=="filters":
-        if not args: return await msg.reply_text("Usage: /filters keyword reply text")
+        if not args: return await msg.reply_text("Usage: /filters keyword response text")
         word=args[0].lower(); val=" ".join(args[1:])
-        if not val: return await msg.reply_text("Reply text bhi likho.")
+        if not val: return await msg.reply_text("Please provide the response text for this filter.")
         import json
         data=json.loads(group_state(chat.id,"filters") or "{}"); data[word]=val
         group_state(chat.id,"filters",json.dumps(data,ensure_ascii=False),True)
-        return await msg.reply_text(f"✅ Filter '{html.escape(word)}' saved.")
+        return await msg.reply_text(f"✅ <b>FILTER CREATED</b>\nKeyword: <code>{html.escape(word)}</code>",parse_mode="HTML")
     if cmd=="delfilters":
         if not args: return await msg.reply_text("Usage: /delfilters keyword")
         import json
         data=json.loads(group_state(chat.id,"filters") or "{}"); data.pop(args[0].lower(),None)
-        group_state(chat.id,"filters",json.dumps(data,ensure_ascii=False),True); return await msg.reply_text("✅ Filter removed.")
+        group_state(chat.id,"filters",json.dumps(data,ensure_ascii=False),True); return await msg.reply_text("✅ <b>FILTER REMOVED</b>\nThe selected keyword filter has been deleted.",parse_mode="HTML")
     if cmd=="filterlist":
         import json
         data=json.loads(group_state(chat.id,"filters") or "{}")
@@ -1239,22 +1239,22 @@ async def group_tools(update,ctx):
         import json
         data=json.loads(group_state(chat.id,"blacklist") or "[]")
         if cmd=="addblacklist":
-            if not args: return await msg.reply_text("Usage: /addblacklist word")
+            if not args: return await msg.reply_text("Usage: /addblacklist word or phrase")
             word=" ".join(args).lower()
             if word not in data: data.append(word)
         elif cmd=="removeblock":
-            if not args: return await msg.reply_text("Usage: /removeblock word")
+            if not args: return await msg.reply_text("Usage: /removeblock word or phrase")
             word=" ".join(args).lower(); data=[x for x in data if x!=word]
         group_state(chat.id,"blacklist",json.dumps(data,ensure_ascii=False),True)
-        return await msg.reply_text("🚫 Blacklist: "+(", ".join(data) if data else "empty"))
+        return await msg.reply_text("🚫 <b>GROUP BLACKLIST</b>\n"+html.escape(", ".join(data) if data else "The blacklist is empty."),parse_mode="HTML")
     if cmd in {"approve","unapprove"}:
         uid=int(args[0]) if args and args[0].isdigit() else (target_user.id if target_user else None)
         if not uid: return await msg.reply_text("Usage: /approve user_id or /unapprove user_id")
         if cmd=="approve": await ctx.bot.approve_chat_join_request(chat.id,uid)
         else: await ctx.bot.decline_chat_join_request(chat.id,uid)
-        return await msg.reply_text("✅ Join request processed.")
+        return await msg.reply_text("✅ <b>JOIN REQUEST PROCESSED</b>\nThe request action was submitted successfully.",parse_mode="HTML")
     if cmd=="setwelcome":
-        if not args: return await msg.reply_text("Usage: /setwelcome welcome message")
+        if not args: return await msg.reply_text("Usage: /setwelcome Your welcome message")
         group_state(chat.id,"welcome"," ".join(args),True); return await msg.reply_text("✅ <b>WELCOME MESSAGE UPDATED</b>\nThe new welcome message is now active.",parse_mode="HTML")
     if cmd=="delsetwelcome":
         group_state(chat.id,"welcome","",True); return await msg.reply_text("✅ <b>WELCOME MESSAGE REMOVED</b>\nThe custom welcome message has been disabled.",parse_mode="HTML")
