@@ -1068,9 +1068,6 @@ async def group_admin(update, ctx, require_bot_admin=False):
             if bot_member.status!="administrator":
                 await msg.reply_text("⛔ <b>BOT PERMISSION REQUIRED</b>\\nDisha must be an administrator in this group before this action can be performed.",parse_mode="HTML")
                 return False
-            if not getattr(bot_member,"can_restrict_members",False) and not getattr(bot_member,"can_promote_members",False):
-                await msg.reply_text("⛔ <b>INSUFFICIENT BOT PERMISSIONS</b>\\nGrant Disha the required member-restriction permission, then try again.",parse_mode="HTML")
-                return False
     except Exception:
         await msg.reply_text("⚠️ <b>PERMISSION CHECK FAILED</b>\\nTelegram could not verify the administrator permissions. Please try again.",parse_mode="HTML")
         return False
@@ -1091,16 +1088,16 @@ async def group_tools(update,ctx):
     if cmd in {"ban","mute","unmute","warn","promote","demote"} and (not target_user or target_user.is_bot):
         return await msg.reply_text(
             "⚠️ <b>TARGET REQUIRED</b>\n"
-            "Jis member par action lena hai, uske message par reply karke command bhejo.",
+            "Reply to the target member's message and run this command again.",
             parse_mode="HTML")
     if cmd=="kick":
         user_obj,error=await resolve_moderation_target(update,ctx,args)
         if error:
             return await msg.reply_text("⚠️ <b>KICK NOT COMPLETED</b>\n"+html.escape(error),parse_mode="HTML")
         if not user_obj or user_obj.is_bot:
-            return await msg.reply_text("⚠️ Bots ko group se kick nahi kiya ja sakta.")
+            return await msg.reply_text("⚠️ <b>ACTION NOT ALLOWED</b>\\nBot accounts cannot be removed with this command.",parse_mode="HTML")
         if user_obj.id==update.effective_user.id or user_obj.id in OWNER_IDS:
-            return await msg.reply_text("⛔ Is member ko kick nahi kiya ja sakta.")
+            return await msg.reply_text("⛔ <b>ACTION DENIED</b>\\nYou cannot kick yourself or a protected bot owner.",parse_mode="HTML")
         try:
             member=await ctx.bot.get_chat_member(chat.id,user_obj.id)
             if member.status in ("administrator","creator"):
@@ -1118,7 +1115,7 @@ async def group_tools(update,ctx):
             log.exception("Kick failed in chat %s for user %s",chat.id,user_obj.id)
             return await msg.reply_text(
                 "❌ <b>KICK FAILED</b>\n"
-                "Telegram ne action complete nahi kiya. Bot ke admin rights, 'Ban users' permission aur target member ka status check karo.",
+                "Telegram could not complete the request. Verify Disha's administrator status, ban permission, and the target member's status.",
                 parse_mode="HTML")
     if cmd=="ban":
         await ctx.bot.ban_chat_member(chat.id,target_user.id)
@@ -1313,7 +1310,7 @@ async def safe_group_tools(update, ctx):
         log.exception("Group command failed: %s", getattr(update.effective_message, "text", "unknown"))
         msg = update.effective_message
         if msg:
-            await msg.reply_text("⚠️ Command complete nahi ho saka. Bot permissions aur command format check karke dobara try karo.")
+            await msg.reply_text("❌ <b>COMMAND FAILED</b>\\nTelegram could not complete this action. Check the command format and Disha's administrator permissions, then try again.",parse_mode="HTML")
 
 async def disha_error_handler(update, ctx):
     error = ctx.error
@@ -1321,7 +1318,7 @@ async def disha_error_handler(update, ctx):
     msg = getattr(update, "effective_message", None)
     if msg and msg.text and msg.text.startswith("/"):
         try:
-            await msg.reply_text("⚠️ Is command ko process karte waqt issue aa gaya. Thodi der baad dobara try karo.")
+            await msg.reply_text("❌ <b>COMMAND ERROR</b>\\nAn unexpected error occurred while processing this command. Please try again later.",parse_mode="HTML")
         except Exception:
             log.exception("Could not send command error notice")
 
