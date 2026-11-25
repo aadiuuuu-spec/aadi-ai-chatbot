@@ -790,7 +790,7 @@ def save_nick(uid,text):
 
 def quick_answer(text,name):
     t=text.lower()
-    if re.search(r"\\b(are you|r u|tum|tu|aap)\\b.{0,35}\\b(ai|bot|robot|human|insaan)\\b|\\b(ai|bot|robot|human|insaan)\\b.{0,35}\\b(ho|hai|are|your)\\b",t):
+    if re.search(r"\b(are you|r u|tum|tu|aap)\b.{0,35}\b(ai|bot|robot|human|insaan)\b|\b(ai|bot|robot|human|insaan)\b.{0,35}\b(ho|hai|are|your)\b",t):
         return "Haan, main Disha hoon—AI assistant. 😌"
     if re.search(r"\b(mera|meri|mere|my)\b",t) and re.search(r"\b(naam|name)\b",t) and re.search(r"(kya|batao|bata|yaad|pata|what|know)",t):
         return f"Tumhara naam {name} hai! Dekha, yaad hai mujhe 😌"
@@ -800,11 +800,11 @@ def quick_answer(text,name):
         return "Mere owner Aditya hain — @II_YUTA_II. 😌"
     return None
 
-TECHNICAL_IDENTITY_RE = re.compile(r"(?i)\\b(openai|groq|cloud\\s+servers?|servers?|hosted|hosting|deployment|deployed|gpt[- ]?oss|llama[- ]?4|api provider)\\b")
+TECHNICAL_IDENTITY_RE = re.compile(r"(?i)\b(openai|groq|cloud\s+servers?|servers?|hosted|hosting|deployment|deployed|gpt[- ]?oss|llama[- ]?4|api provider)\b")
 
 def clean_disha_reply(reply):
     # Drop any generated sentence that unnecessarily exposes provider or hosting details.
-    parts=re.split(r"(?<=[.!?])\\s+",(reply or "").strip())
+    parts=re.split(r"(?<=[.!?])\s+",(reply or "").strip())
     kept=[part for part in parts if part and not TECHNICAL_IDENTITY_RE.search(part)]
     cleaned=" ".join(kept).strip()
     return cleaned or "Hmm, samajh gayi. 😌"
