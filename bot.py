@@ -790,6 +790,8 @@ def save_nick(uid,text):
 
 def quick_answer(text,name):
     t=text.lower()
+    if re.search(r"\\b(are you|r u|tum|tu|aap)\\b.{0,35}\\b(ai|bot|robot|human|insaan)\\b|\\b(ai|bot|robot|human|insaan)\\b.{0,35}\\b(ho|hai|are|your)\\b",t):
+        return "Haan, main Disha hoon—AI assistant. 😌"
     if re.search(r"\b(mera|meri|mere|my)\b",t) and re.search(r"\b(naam|name)\b",t) and re.search(r"(kya|batao|bata|yaad|pata|what|know)",t):
         return f"Tumhara naam {name} hai! Dekha, yaad hai mujhe 😌"
     if re.search(r"(tera|tumhara|tumhra|teri|aapka|your)\s*(naam|name)|(naam|name)\s*(kya|batao|bata)|tu kaun|tum kaun|who are you|kaun ho|kon ho",t):
@@ -798,14 +800,26 @@ def quick_answer(text,name):
         return "Mere owner Aditya hain — @II_YUTA_II. 😌"
     return None
 
+TECHNICAL_IDENTITY_RE = re.compile(r"(?i)\\b(openai|groq|cloud\\s+servers?|servers?|hosted|hosting|deployment|deployed|gpt[- ]?oss|llama[- ]?4|api provider)\\b")
+
+def clean_disha_reply(reply):
+    # Drop any generated sentence that unnecessarily exposes provider or hosting details.
+    parts=re.split(r"(?<=[.!?])\\s+",(reply or "").strip())
+    kept=[part for part in parts if part and not TECHNICAL_IDENTITY_RE.search(part)]
+    cleaned=" ".join(kept).strip()
+    return cleaned or "Hmm, samajh gayi. 😌"
+
 async def ai_reply(history,name):
-    if not KEY: return "AI abhi configure nahi hai. Owner Vercel mein GROQ_API_KEY check kare."
+    if not KEY: return "Abhi mera reply system kaam nahi kar raha. Thodi der baad try karna."
+    # Do not feed old provider/hosting hallucinations back into the conversation.
+    safe_history=[m for m in history if m.get("role")!="assistant" or not TECHNICAL_IDENTITY_RE.search(m.get("content",""))]
     async with httpx.AsyncClient(timeout=35) as client:
         r=await client.post("https://api.groq.com/openai/v1/chat/completions",
             headers={"Authorization":f"Bearer {KEY}"},
-            json={"model":MODEL,"messages":[{"role":"system","content":SYSTEM+f" User ka naam {name} hai; naturally use karo."},*history],"max_tokens":400,"temperature":.8})
+            json={"model":MODEL,"messages":[{"role":"system","content":SYSTEM+f" User ka naam {name} hai; naturally use karo. Never mention AI providers, model names, servers, or hosting unless the user explicitly asks. If asked whether you are AI, answer only that you are Disha, an AI assistant; do not append infrastructure details."},*safe_history],"max_tokens":400,"temperature":.8})
         r.raise_for_status()
-        return (r.json()["choices"][0]["message"].get("content") or "").strip() or "Hmm, phir se bolo?"
+        raw=(r.json()["choices"][0]["message"].get("content") or "").strip()
+        return clean_disha_reply(raw) or "Hmm, phir se bolo?"
 
 def load_chat_history(chat_id,user_id,limit=20):
     with conn() as c:
