@@ -1309,73 +1309,48 @@ COUPLE_CAPTIONS = [
 def build_couple_card(first_name, second_name, first_photo, second_photo, percent, caption):
     from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter
     W,H=1280,720
-    im=Image.new("RGB",(W,H))
-    px=im.load()
+    base=Image.new("RGB",(W,H),(75,10,72))
+    px=base.load()
     for y in range(H):
         for x in range(W):
             t=(x/W)*0.55+(y/H)*0.45
-            px[x,y]=(int(54+155*t),int(8+24*t),int(48+105*t))
+            px[x,y]=(int(62+130*t),int(8+20*t),int(65+105*t))
+    im=base.convert("RGBA")
     glow=Image.new("RGBA",(W,H),(0,0,0,0))
     gd=ImageDraw.Draw(glow)
-    for x,y,r in [(80,90,180),(1190,100,210),(640,690,260),(640,350,130)]:
-        gd.ellipse((x-r,y-r,x+r,y+r),fill=(255,35,155,48))
-    im=Image.alpha_composite(im.convert("RGBA"),glow.filter(ImageFilter.GaussianBlur(75)))
+    for x,y,r in [(80,90,190),(1190,100,220),(640,650,250),(640,350,150)]:
+        gd.ellipse((x-r,y-r,x+r,y+r),fill=(255,35,165,55))
+    im=Image.alpha_composite(im,glow.filter(ImageFilter.GaussianBlur(85)))
     d=ImageDraw.Draw(im)
-    def load_font(size):
-        for path in ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf","/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf","DejaVuSans.ttf","DejaVuSans-Bold.ttf"):
-            try:
-                return ImageFont.truetype(path,size)
-            except Exception:
-                continue
-        return ImageFont.load_default()
-    sub=load_font(25)
-    namefont=load_font(27)
-    scorefont=load_font(58)
-    capfont=load_font(23)
-    d.rounded_rectangle((28,25,W-28,H-25),radius=38,outline=(255,120,205,220),width=4)
-    d.text((W//2,72),"♡  TODAY'S MATCH  ♡",font=sub,fill=(255,210,235),anchor="mt")
-    centers=[(330,345),(950,345)]
-    photos=[first_photo,second_photo]
-    for (cx,cy),raw in zip(centers,photos):
-        d.ellipse((cx-162,cy-162,cx+162,cy+162),fill=(255,90,190),outline=(255,230,250),width=12)
+    d.rounded_rectangle((28,25,W-28,H-25),radius=42,outline=(255,145,220,235),width=5)
+    # Decorative hearts and sparkles only; no text is baked into the image.
+    for x,y,size in [(640,345,72),(640,150,24),(155,590,18),(1125,575,20),(320,115,14),(960,110,14)]:
+        if size>30:
+            d.ellipse((x-size//2,y-size//2,x,y+size//3),fill=(255,105,195,255))
+            d.ellipse((x,y-size//2,x+size//2,y+size//3),fill=(255,105,195,255))
+            d.polygon([(x-size//2,y),(x+size//2,y),(x,y+size)],fill=(255,105,195,255))
+        else:
+            d.ellipse((x-size//2,y-size//2,x+size//2,y+size//2),outline=(255,205,240,190),width=4)
+    centers=[(330,360),(950,360)]
+    for (cx,cy),raw in zip(centers,[first_photo,second_photo]):
+        d.ellipse((cx-178,cy-178,cx+178,cy+178),fill=(255,105,195,255),outline=(255,238,250,255),width=13)
+        avatar=None
         if raw:
             try:
                 avatar=Image.open(io.BytesIO(raw)).convert("RGB")
-                avatar=ImageOps.fit(avatar,(290,290),centering=(0.5,0.5))
+                avatar=ImageOps.fit(avatar,(320,320),centering=(0.5,0.35))
             except Exception:
                 avatar=None
-        else: avatar=None
         if avatar is None:
-            avatar=Image.new("RGB",(290,290),(120,35,95))
+            avatar=Image.new("RGB",(320,320),(130,35,105))
             ad=ImageDraw.Draw(avatar)
-            ad.ellipse((70,38,220,188),fill=(255,160,215))
-            ad.rounded_rectangle((35,165,255,330),radius=85,fill=(255,115,185))
-        mask=Image.new("L",(290,290),0)
-        ImageDraw.Draw(mask).ellipse((0,0,289,289),fill=255)
-        im.paste(avatar,(cx-145,cy-145),mask)
+            ad.ellipse((82,38,238,194),fill=(255,175,220))
+            ad.rounded_rectangle((35,168,285,360),radius=105,fill=(255,115,190))
+        mask=Image.new("L",(320,320),0)
+        ImageDraw.Draw(mask).ellipse((0,0,319,319),fill=255)
+        im.paste(avatar,(cx-160,cy-160),mask)
         d=ImageDraw.Draw(im)
-        d.ellipse((cx-152,cy-152,cx+152,cy+152),outline=(255,215,245),width=8)
-    # Draw a heart with vector shapes so this works even without Unicode fonts.
-    d.ellipse((605,304,645,344),fill=(255,105,190))
-    d.ellipse((635,304,675,344),fill=(255,105,190))
-    d.polygon([(605,328),(675,328),(640,370)],fill=(255,105,190))
-    # Name plates
-    d.rounded_rectangle((130,525,530,585),radius=28,fill=(92,12,65,235),outline=(255,135,210),width=3)
-    d.rounded_rectangle((750,525,1150,585),radius=28,fill=(92,12,65,235),outline=(255,135,210),width=3)
-    def fit_name(value):
-        value=(value or "Member").strip()
-        while len(value)>20: value=value[:19]+"…"
-        return value
-    d.text((330,555),fit_name(first_name),font=namefont,fill=(255,242,250),anchor="mm")
-    d.text((950,555),fit_name(second_name),font=namefont,fill=(255,242,250),anchor="mm")
-    d.rounded_rectangle((495,430,785,515),radius=34,fill=(130,15,91,245),outline=(255,130,210),width=3)
-    d.text((640,468),str(percent)+"%",font=scorefont,fill=(255,235,248),anchor="mm")
-    d.text((640,610),"COMPATIBILITY",font=sub,fill=(255,178,220),anchor="mm")
-    d.rounded_rectangle((260,650,1020,658),radius=5,fill=(105,35,80))
-    d.rounded_rectangle((260,650,260+int(760*percent/100),658),radius=5,fill=(255,105,195))
-    d.text((640,685),caption,font=capfont,fill=(255,230,246),anchor="mm")
-    watermark=load_font(18)
-    d.text((W-48,H-34),"Disha",font=watermark,fill=(255,205,232,115),anchor="rb",stroke_width=0)
+        d.ellipse((cx-168,cy-168,cx+168,cy+168),outline=(255,225,248,255),width=9)
     return im.convert("RGB")
 
 async def couple(update,ctx):
@@ -1433,7 +1408,18 @@ async def couple(update,ctx):
         card.save(output,format="PNG",optimize=True)
         output.seek(0)
         output.name="disha_couple_match.png"
-        await msg.reply_photo(photo=output,caption="💗 Just a random group game — not a real-life prediction.")
+        await msg.reply_photo(
+            photo=output,
+            caption=small_caps_html(
+                f"💗 <b>COUPLE MATCH</b>\\n"
+                f"✦ {html.escape(pair[0][1])}  ×  {html.escape(pair[1][1])} ✦\\n"
+                f"💞 <b>COMPATIBILITY:</b> {percent}%\\n"
+                f"▰" * (percent//10) + "▱" * (10-percent//10) + "\\n"
+                f"{html.escape(caption)}\\n"
+                f"<i>Just a random group game — not a real-life prediction.</i>"
+            ),
+            parse_mode="HTML"
+        )
     except Exception:
         log.exception("Could not render couple match card")
         await msg.reply_text(small_caps_html(
