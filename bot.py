@@ -1043,7 +1043,15 @@ async def member_left(update, ctx):
         card.save(output,format="JPEG",quality=90,optimize=True)
         output.seek(0)
         output.name="member_welcome.jpg" if joined else "member_left.jpg"
-        await ctx.bot.send_photo(chat_id=chat.id,photo=output)
+        welcome_caption=(
+            f"💗 <b>{'WELCOME TO THE GROUP' if joined else 'GOODBYE, TAKE CARE!'}</b>\\n"
+            f"Name: {html.escape(member.full_name or 'Unknown member')}\\n"
+            f"Username: {html.escape('@'+member.username if member.username else 'Not set')}\\n"
+            f"User ID: <code>{member.id}</code>\\n"
+            f"Group: {html.escape(chat.title or 'Group')}\\n"
+            f"{html.escape((custom_welcome or 'Glad to have you here!') if joined else 'Thanks for being part of the group!')}"
+        )
+        await ctx.bot.send_photo(chat_id=chat.id,photo=output,caption=welcome_caption,parse_mode="HTML")
     except Exception:
         log.exception("Could not render member join/leave card")
         # Try a safe designed card instead of degrading to unformatted text.
@@ -1410,12 +1418,11 @@ async def couple(update,ctx):
         output.name="disha_couple_match.png"
         compatibility_bar=("▰" * (percent//10))+("▱" * (10-percent//10))
         result_caption=small_caps_html(
-            f"💗 <b>COUPLE MATCH</b>\\n"
-            f"✦ {html.escape(pair[0][1])}  ×  {html.escape(pair[1][1])} ✦\\n"
-            f"💞 <b>COMPATIBILITY:</b> {percent}%\\n"
-            f"{compatibility_bar}\\n"
-            f"{html.escape(caption)}\\n"
-            f"<i>Just a random group game — not a real-life prediction.</i>"
+            f"💗 <b>COUPLE MATCH</b>\n"
+            f"✦ {html.escape(pair[0][1])}  ×  {html.escape(pair[1][1])} ✦\n"
+            f"💞 <b>COMPATIBILITY:</b> {percent}%\n"
+            f"{compatibility_bar}\n"
+            f"{html.escape(caption)}\n"
         )
         await msg.reply_photo(photo=output,caption=result_caption,parse_mode="HTML")
     except Exception:
