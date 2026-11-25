@@ -1044,11 +1044,11 @@ async def member_left(update, ctx):
         output.seek(0)
         output.name="member_welcome.jpg" if joined else "member_left.jpg"
         welcome_caption=(
-            f"💗 <b>{'WELCOME TO THE GROUP' if joined else 'GOODBYE, TAKE CARE!'}</b>\\n"
-            f"Name: {html.escape(member.full_name or 'Unknown member')}\\n"
-            f"Username: {html.escape('@'+member.username if member.username else 'Not set')}\\n"
-            f"User ID: <code>{member.id}</code>\\n"
-            f"Group: {html.escape(chat.title or 'Group')}\\n"
+            f"💗 <b>{'WELCOME TO THE GROUP' if joined else 'GOODBYE, TAKE CARE!'}</b>\n"
+            f"Name: {html.escape(member.full_name or 'Unknown member')}\n"
+            f"Username: {html.escape('@'+member.username if member.username else 'Not set')}\n"
+            f"User ID: <code>{member.id}</code>\n"
+            f"Group: {html.escape(chat.title or 'Group')}\n"
             f"{html.escape((custom_welcome or 'Glad to have you here!') if joined else 'Thanks for being part of the group!')}"
         )
         await ctx.bot.send_photo(chat_id=chat.id,photo=output,caption=welcome_caption,parse_mode="HTML")
@@ -1064,7 +1064,15 @@ async def member_left(update, ctx):
             d.text((120,290),"@"+member.username if member.username else "Username not set",fill=(80,48,70))
             output=io.BytesIO(); card.save(output,format="JPEG",quality=90); output.seek(0)
             output.name="member_event.jpg"
-            await ctx.bot.send_photo(chat_id=chat.id,photo=output)
+            fallback_caption=(
+                f"<b>{'WELCOME TO THE GROUP' if joined else 'GOODBYE, TAKE CARE!'}</b>\n"
+                f"Name: {html.escape(member.full_name or 'Unknown member')}\n"
+                f"Username: {html.escape('@'+member.username if member.username else 'Not set')}\n"
+                f"User ID: <code>{member.id}</code>\n"
+                f"Group: {html.escape(chat.title or 'Group')}\n"
+                f"{html.escape((custom_welcome or 'Glad to have you here!') if joined else 'Thanks for being part of the group!')}"
+            )
+            await ctx.bot.send_photo(chat_id=chat.id,photo=output,caption=fallback_caption,parse_mode="HTML")
         except Exception:
             log.exception("Could not send fallback member event image")
 def pick_image(m):
