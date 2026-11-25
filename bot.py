@@ -1408,18 +1408,16 @@ async def couple(update,ctx):
         card.save(output,format="PNG",optimize=True)
         output.seek(0)
         output.name="disha_couple_match.png"
-        await msg.reply_photo(
-            photo=output,
-            caption=small_caps_html(
-                f"💗 <b>COUPLE MATCH</b>\\n"
-                f"✦ {html.escape(pair[0][1])}  ×  {html.escape(pair[1][1])} ✦\\n"
-                f"💞 <b>COMPATIBILITY:</b> {percent}%\\n"
-                f"▰" * (percent//10) + "▱" * (10-percent//10) + "\\n"
-                f"{html.escape(caption)}\\n"
-                f"<i>Just a random group game — not a real-life prediction.</i>"
-            ),
-            parse_mode="HTML"
+        compatibility_bar=("▰" * (percent//10))+("▱" * (10-percent//10))
+        result_caption=small_caps_html(
+            f"💗 <b>COUPLE MATCH</b>\\n"
+            f"✦ {html.escape(pair[0][1])}  ×  {html.escape(pair[1][1])} ✦\\n"
+            f"💞 <b>COMPATIBILITY:</b> {percent}%\\n"
+            f"{compatibility_bar}\\n"
+            f"{html.escape(caption)}\\n"
+            f"<i>Just a random group game — not a real-life prediction.</i>"
         )
+        await msg.reply_photo(photo=output,caption=result_caption,parse_mode="HTML")
     except Exception:
         log.exception("Could not render couple match card")
         await msg.reply_text(small_caps_html(
