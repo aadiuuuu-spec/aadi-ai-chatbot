@@ -1190,12 +1190,12 @@ def replied_user(update):
     return m.reply_to_message.from_user if m and m.reply_to_message else None
 
 PROTECTED_MODERATION_REPLIES = {
-    "ban": "𝐏𝐀𝐏𝐀 𝐊𝐎 𝐁𝐀𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀!",
+    "ban": "𝐏𝐀𝐏𝐀 𝐊𝐎 𝐁𝐀𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐂𝐇𝐀𝐋 𝐇𝐀𝐓𝐓!",
     "kick": "𝐏𝐀𝐏𝐀 𝐊𝐎 𝐊𝐈𝐂𝐊 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐂𝐇𝐀𝐋 𝐇𝐀𝐓𝐓!",
     "unban": "𝐁𝐀𝐁𝐘 𝐘𝐎𝐔’𝐑𝐄 𝐂𝐔𝐓𝐄 👀",
-    "mute": "𝐏𝐀𝐏𝐀 𝐊𝐎 𝐁𝐀𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀!",
+    "mute": "𝐏𝐀𝐏𝐀 𝐊𝐎 𝐌𝐔𝐓𝐄 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐂𝐇𝐀𝐋 𝐇𝐀𝐓𝐓!",
     "unmute": "𝐁𝐀𝐁𝐘 𝐘𝐎𝐔’𝐑𝐄 𝐂𝐔𝐓𝐄 👀",
-    "warn": "𝐏𝐀𝐏𝐀 𝐊𝐎 𝐁𝐀𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀!",
+    "warn": "𝐏𝐀𝐏𝐀 𝐊𝐎 𝐖𝐀𝐑𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐂𝐇𝐀𝐋 𝐇𝐀𝐓𝐓!",
 }
 
 def protected_moderation_reply(command):
