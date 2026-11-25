@@ -1043,7 +1043,7 @@ async def member_left(update, ctx):
         card.save(output,format="JPEG",quality=90,optimize=True)
         output.seek(0)
         output.name="member_welcome.jpg" if joined else "member_left.jpg"
-        welcome_caption=(
+        welcome_caption=small_caps_html(
             f"💗 <b>{'WELCOME TO THE GROUP' if joined else 'GOODBYE, TAKE CARE!'}</b>\n"
             f"Name: {html.escape(member.full_name or 'Unknown member')}\n"
             f"Username: {html.escape('@'+member.username if member.username else 'Not set')}\n"
