@@ -8,7 +8,7 @@ SMALL_CAPS_MAP = str.maketrans({
 def small_caps_html(value):
     if not isinstance(value, str):
         return value
-    parts = re.split(r'(<[^>]*>|&(?:[A-Za-z]+|#\\d+|#x[0-9A-Fa-f]+);|https?://[^\\s<]+)', value)
+    parts = re.split(r'(<[^>]*>|&(?:[A-Za-z]+|#\d+|#x[0-9A-Fa-f]+);|https?://[^\s<]+)', value)
     return "".join(part if (part.startswith("<") or part.startswith("&") or part.startswith("http://") or part.startswith("https://")) else part.translate(SMALL_CAPS_MAP) for part in parts)
 
 from collections import defaultdict, deque
