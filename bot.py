@@ -937,74 +937,100 @@ async def sticker_reply(update,ctx):
     except Exception: log.exception("Sticker reply failed")
 
 
+JOIN_LEAVE_BG_B64 = "BGDATA_PLACEHOLDER"
+
+def render_member_event_card(member, group_name, joined, custom_welcome, avatar_bytes):
+    from PIL import Image, ImageDraw, ImageFont, ImageOps
+    background=Image.open(io.BytesIO(base64.b64decode(JOIN_LEAVE_BG_B64))).convert("RGBA")
+    W,H=background.size
+    draw=ImageDraw.Draw(background,"RGBA")
+    def font(size,bold=False):
+        paths=(
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf",
+        )
+        for path in paths:
+            try: return ImageFont.truetype(path,size)
+            except Exception: pass
+        return ImageFont.load_default()
+    # Soft translucent details panel, keeping the supplied pink bow background visible.
+    draw.rounded_rectangle((500,48,1480,432),radius=42,fill=(255,248,253,205),outline=(255,255,255,235),width=5)
+    cx,cy,r=260,240,174
+    draw.ellipse((cx-r-10,cy-r-10,cx+r+10,cy+r+10),fill=(255,145,205,255),outline=(255,255,255,255),width=12)
+    avatar=None
+    if avatar_bytes:
+        try:
+            avatar=Image.open(io.BytesIO(avatar_bytes)).convert("RGB")
+            avatar=ImageOps.fit(avatar,(r*2,r*2),centering=(0.5,0.35))
+        except Exception: avatar=None
+    if avatar is None:
+        avatar=Image.new("RGB",(r*2,r*2),(255,205,230))
+        ad=ImageDraw.Draw(avatar)
+        initials="".join(part[0] for part in (member.full_name or "M").split()[:2]).upper()
+        ad.text((r,r),initials,font=font(82,True),fill=(145,45,100),anchor="mm")
+    mask=Image.new("L",(r*2,r*2),0)
+    ImageDraw.Draw(mask).ellipse((0,0,r*2-1,r*2-1),fill=255)
+    background.paste(avatar,(cx-r,cy-r),mask)
+    draw=ImageDraw.Draw(background,"RGBA")
+    draw.ellipse((cx-r,cy-r,cx+r,cy+r),outline=(255,255,255,255),width=9)
+    heading="WELCOME TO THE GROUP" if joined else "MEMBER LEFT THE GROUP"
+    draw.text((565,82),heading,font=font(43,True),fill=(165,55,112,255))
+    name=member.full_name or "Unknown member"
+    if len(name)>34: name=name[:32]+"…"
+    username="@"+member.username if member.username else "Not set"
+    details=[
+        ("NAME",name),
+        ("USERNAME",username),
+        ("USER ID",str(member.id)),
+        ("GROUP",group_name or "Group"),
+    ]
+    y=160
+    for label,value in details:
+        if len(value)>45: value=value[:43]+"…"
+        draw.text((575,y),label,font=font(18,True),fill=(190,105,150,255))
+        draw.text((760,y-3),value,font=font(24,True),fill=(80,48,70,255))
+        y+=55
+    footer=(custom_welcome or "Glad to have you here!") if joined else "Goodbye!"
+    if len(footer)>62: footer=footer[:59]+"…"
+    draw.text((575,390),footer,font=font(20),fill=(170,75,125,255))
+    return background.convert("RGB")
+
 async def member_left(update, ctx):
-    change = update.chat_member
-    if not change:
-        return
-
-    old_status = change.old_chat_member.status
-    new_status = change.new_chat_member.status
-    member = change.new_chat_member.user
-    chat = update.effective_chat
-
-    joined = old_status in ("left", "kicked") and new_status in (
-        "member", "administrator", "creator"
-    )
-    left = new_status == "left" and old_status not in ("left", "kicked")
-    if not joined and not left:
-        return
-
-    def clean(value, fallback="Not provided"):
-        value = str(value or "")
-        value = re.sub(r"[\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]", "", value)
-        value = " ".join(value.split()).strip()
-        return html.escape(value) if value else fallback
-
-    username = f"@{clean(member.username)}" if member.username else "Not set"
-    name = clean(member.full_name, username if username != "Not set" else "Unknown member")
-    group_name = clean(chat.title, "Group")
-
-    if joined:
-        heading = f"👋 <b>WELCOME TO {group_name}!</b>"
-        event_label = "Joined"
-        custom_welcome = group_state(chat.id, "welcome")
-        footer = ("✅ " + html.escape(custom_welcome)) if custom_welcome else "✅ <i>Glad to have you here!</i>"
-    else:
-        heading = "📤 <b>MEMBER LEFT</b>"
-        event_label = "Left"
-        footer = "👋 <i>Goodbye!</i>"
-
-    message = (
-        f"{heading}\n\n"
-        f"👤 <b>Name:</b> {name}\n"
-        f"🏷️ <b>Username:</b> {username}\n"
-        f"🆔 <b>User ID:</b> <code>{member.id}</code>\n"
-        f"👥 <b>Group:</b> {group_name}\n"
-        "\n"
-        f"{footer}"
-    )
-
-    message = f"<blockquote>{message}</blockquote>"
-
+    change=update.chat_member
+    if not change: return
+    old_status=change.old_chat_member.status
+    new_status=change.new_chat_member.status
+    member=change.new_chat_member.user
+    chat=update.effective_chat
+    joined=old_status in ("left","kicked") and new_status in ("member","administrator","creator")
+    left=new_status=="left" and old_status not in ("left","kicked")
+    if not joined and not left: return
+    custom_welcome=group_state(chat.id,"welcome") if joined else None
+    avatar_bytes=None
     try:
-        photos = await ctx.bot.get_user_profile_photos(member.id, limit=1)
+        photos=await ctx.bot.get_user_profile_photos(member.id,limit=1)
         if photos.total_count and photos.photos and photos.photos[0]:
-            await ctx.bot.send_photo(
-                chat_id=chat.id,
-                photo=photos.photos[0][-1].file_id,
-                caption=message,
-                parse_mode="HTML",
-            )
-            return
+            file=await ctx.bot.get_file(photos.photos[0][-1].file_id)
+            avatar_bytes=bytes(await file.download_as_bytearray())
     except Exception:
-        log.exception("Could not fetch member profile photo")
-
-    await ctx.bot.send_message(
-        chat_id=chat.id,
-        text=message,
-        parse_mode="HTML",
-        disable_web_page_preview=True,
-    )
+        log.info("Could not fetch member profile photo for join/leave card",exc_info=True)
+    try:
+        card=render_member_event_card(member,chat.title or "Group",joined,custom_welcome,avatar_bytes)
+        output=io.BytesIO()
+        card.save(output,format="JPEG",quality=90,optimize=True)
+        output.seek(0)
+        output.name="member_welcome.jpg" if joined else "member_left.jpg"
+        await ctx.bot.send_photo(chat_id=chat.id,photo=output)
+    except Exception:
+        log.exception("Could not render member join/leave card")
+        status="WELCOME TO THE GROUP" if joined else "MEMBER LEFT"
+        username="@"+member.username if member.username else "Not set"
+        footer=(custom_welcome or "Glad to have you here!") if joined else "Goodbye!"
+        await ctx.bot.send_message(
+            chat_id=chat.id,
+            text=(f"{status}\nName: {member.full_name}\nUsername: {username}\nUser ID: {member.id}\nGroup: {chat.title or 'Group'}\n{footer}"),
+            disable_web_page_preview=True,
+        )
 
 def pick_image(m):
     if not m: return None
