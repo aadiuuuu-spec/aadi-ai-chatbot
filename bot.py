@@ -760,13 +760,15 @@ async def unban_one(update,ctx):
         return await msg.reply_text("⚠️ "+html.escape(error))
     if is_protected_moderation_target(user_obj.id,ctx.bot.id):
         return await msg.reply_text(protected_moderation_reply("unban"))
+    reason_line=moderation_reason_line(moderation_reason(update,ctx,"unban"))
     try:
         await ctx.bot.unban_chat_member(update.effective_chat.id,user_obj.id,only_if_banned=True)
         return await msg.reply_text(
             "✅ <b>USER UNBANNED</b>\n"
             f"👤 User: {mention(user_obj)}\n"
             f"🆔 ID: <code>{user_obj.id}</code>\n"
-            f"📍 Group: <b>{html.escape(update.effective_chat.title or 'this group')}</b>",
+            f"📍 Group: <b>{html.escape(update.effective_chat.title or 'this group')}</b>"
+            f"{reason_line}",
             parse_mode="HTML")
     except Exception:
         log.exception("Unban failed in chat %s",update.effective_chat.id)
@@ -1209,7 +1211,7 @@ def moderation_reason(update, ctx, command):
     return " ".join(args).strip()
 
 def moderation_reason_line(reason):
-    return f"\\n📝 <b>Reason:</b> {html.escape(reason)}" if reason else ""
+    return f"\n📝 <b>Reason:</b> {html.escape(reason)}" if reason else ""
 
 def is_protected_moderation_target(user_id, bot_id=None):
     return user_id in OWNER_IDS or (bot_id is not None and user_id == bot_id)
