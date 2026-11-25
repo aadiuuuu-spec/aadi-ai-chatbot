@@ -937,7 +937,7 @@ async def sticker_reply(update,ctx):
     except Exception: log.exception("Sticker reply failed")
 
 
-JOIN_LEAVE_BG_B64 = "BGDATA_PLACEHOLDER"
+JOIN_LEAVE_BG_B64 = "REPLACE_WITH_BASE64"
 
 def render_member_event_card(member, group_name, joined, custom_welcome, avatar_bytes):
     from PIL import Image, ImageDraw, ImageFont, ImageOps
