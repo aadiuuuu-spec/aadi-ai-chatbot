@@ -263,6 +263,7 @@ def init():
         c.execute("CREATE TABLE IF NOT EXISTS group_settings(chat_id BIGINT NOT NULL,setting_key TEXT NOT NULL,setting_value TEXT,PRIMARY KEY(chat_id,setting_key))")
         c.execute("CREATE TABLE IF NOT EXISTS group_warns(chat_id BIGINT NOT NULL,user_id BIGINT NOT NULL,warnings INTEGER DEFAULT 0,PRIMARY KEY(chat_id,user_id))")
         c.execute("CREATE TABLE IF NOT EXISTS group_usernames(chat_id BIGINT NOT NULL,username TEXT NOT NULL,user_id BIGINT NOT NULL,display_name TEXT,PRIMARY KEY(chat_id,username))")
+        c.execute("CREATE TABLE IF NOT EXISTS group_members(chat_id BIGINT NOT NULL,user_id BIGINT NOT NULL,display_name TEXT,username TEXT,PRIMARY KEY(chat_id,user_id))")
         c.execute("CREATE TABLE IF NOT EXISTS chat_history(chat_id BIGINT NOT NULL,user_id BIGINT NOT NULL,role TEXT NOT NULL,content TEXT NOT NULL,created_at DOUBLE PRECISION NOT NULL)")
 
 def user(u):
@@ -359,15 +360,18 @@ async def remember_group_user(update, ctx):
     chat=update.effective_chat
     if not msg or not user_obj or not chat or chat.type not in ("group","supergroup") or user_obj.is_bot:
         return
-    username=(user_obj.username or "").lower()
-    if not username:
-        return
+    username=(user_obj.username or "").lower() or None
     try:
         with conn() as c:
-            c.execute("""INSERT INTO group_usernames(chat_id,username,user_id,display_name)
-                VALUES(?,?,?,?) ON CONFLICT(chat_id,username) DO UPDATE SET
-                user_id=excluded.user_id,display_name=excluded.display_name""",
-                (chat.id,username,user_obj.id,user_obj.first_name or "Member"))
+            c.execute("""INSERT INTO group_members(chat_id,user_id,display_name,username)
+                VALUES(?,?,?,?) ON CONFLICT(chat_id,user_id) DO UPDATE SET
+                display_name=excluded.display_name,username=excluded.username""",
+                (chat.id,user_obj.id,user_obj.first_name or "Member",username))
+            if username:
+                c.execute("""INSERT INTO group_usernames(chat_id,username,user_id,display_name)
+                    VALUES(?,?,?,?) ON CONFLICT(chat_id,username) DO UPDATE SET
+                    user_id=excluded.user_id,display_name=excluded.display_name""",
+                    (chat.id,username,user_obj.id,user_obj.first_name or "Member"))
     except Exception:
         log.exception("Could not cache group username")
 
@@ -1235,6 +1239,75 @@ def moderation_reason_line(reason):
 def is_protected_moderation_target(user_id, bot_id=None):
     return user_id in OWNER_IDS or (bot_id is not None and user_id == bot_id)
 
+COUPLE_LAST_PAIRS = {}
+
+COUPLE_CAPTIONS = [
+    "✨ The group chat did not see this coming.",
+    "🔥 Chemistry detected. Evidence still pending.",
+    "💬 One sends paragraphs, the other replies with 'hmm'.",
+    "🌙 Unexpected duo unlocked. Let's see what happens.",
+    "🧩 Somehow, these two fit the same puzzle.",
+    "🚦 Green flag energy… for now.",
+    "😂 The group admins may need to investigate this pairing.",
+    "⭐ Plot twist: this match actually has potential.",
+    "🎭 A legendary duo or a legendary argument? Time will tell."
+]
+
+async def couple(update,ctx):
+    msg=update.effective_message
+    chat=update.effective_chat
+    actor=update.effective_user
+    if not msg or not chat or chat.type not in ("group","supergroup"):
+        if msg:
+            await msg.reply_text(small_caps_html("💡 <b>GROUP GAME</b>\nUse /couple inside a group to match two random members."),parse_mode="HTML")
+        return
+    if actor and not actor.is_bot:
+        with conn() as c:
+            c.execute("""INSERT INTO group_members(chat_id,user_id,display_name,username)
+                VALUES(?,?,?,?) ON CONFLICT(chat_id,user_id) DO UPDATE SET
+                display_name=excluded.display_name,username=excluded.username""",
+                (chat.id,actor.id,actor.first_name or "Member",(actor.username or "").lower() or None))
+    with conn() as c:
+        rows=c.execute("""SELECT user_id,display_name FROM group_members
+            WHERE chat_id=? AND user_id<>? ORDER BY display_name""",(chat.id,ctx.bot.id)).fetchall()
+    members=[]
+    seen=set()
+    for row in rows:
+        uid=int(row["user_id"])
+        if uid not in seen:
+            seen.add(uid)
+            members.append((uid,row["display_name"] or "Member"))
+    if len(members)<2:
+        return await msg.reply_text(small_caps_html(
+            "💡 <b>NOT ENOUGH MEMBERS YET</b>\nI need at least two members to have chatted in this group after this feature is enabled. Let a few people send messages, then try /couple again."
+        ),parse_mode="HTML")
+    pair=random.sample(members,2)
+    pair_key=tuple(sorted((pair[0][0],pair[1][0])))
+    previous=COUPLE_LAST_PAIRS.get(chat.id)
+    if len(members)>2 and previous==pair_key:
+        import itertools
+        alternatives=[p for p in itertools.combinations(members,2) if tuple(sorted((p[0][0],p[1][0])))!=previous]
+        if alternatives:
+            pair=list(random.choice(alternatives))
+    COUPLE_LAST_PAIRS[chat.id]=tuple(sorted((pair[0][0],pair[1][0])))
+    percent=random.randint(1,100)
+    filled=round(percent/10)
+    bar="█"*filled+"░"*(10-filled)
+    caption=random.choice(COUPLE_CAPTIONS)
+    first=f'<a href="tg://user?id={pair[0][0]}">{html.escape(pair[0][1])}</a>'
+    second=f'<a href="tg://user?id={pair[1][0]}">{html.escape(pair[1][1])}</a>'
+    response=(
+        "𓆩 <b>ＤＩＳＨＡ'Ｓ  ＭＡＴＣＨＭＡＫＥＲ</b> 𓆪\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        f"♡  {first}  ×  {second}  ♡\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        f"💗 <b>Compatibility:</b> {percent}%\n"
+        f"<code>{bar}</code>\n\n"
+        f"{caption}\n\n"
+        "<i>「 Just a random group game — no real-life prediction! 」</i>"
+    )
+    await msg.reply_text(small_caps_html(response),parse_mode="HTML")
+
 async def group_tools(update,ctx):
     msg=update.effective_message; chat=update.effective_chat
     cmd=msg.text.split()[0].split("@")[0].lstrip("/").lower() if msg and msg.text else ""
@@ -1512,6 +1585,7 @@ async def disha_error_handler(update, ctx):
 async def set_disha_commands(application):
     commands = [
         ("start", "sᴛᴀʀᴛ ᴅɪsʜᴀ ᴀɴᴅ ᴏᴘᴇɴ ᴛʜᴇ ᴍᴀɪɴ ᴍᴇɴᴜ"),
+        ("couple", "ᴘɪᴄᴋ ᴛᴡᴏ ʀᴀɴᴅᴏᴍ ɢʀᴏᴜᴘ ᴍᴇᴍʙᴇʀs"),
         ("help", "ʜᴇʟᴘ ᴀɴᴅ ᴛɪᴘs ғᴏʀ ᴜsɪɴɢ ᴅɪsʜᴀ"),
         ("about", "ᴀʙᴏᴜᴛ ᴅɪsʜᴀ ᴀɪ"),
         ("profile", "ᴠɪᴇᴡ ʏᴏᴜʀ ᴘʀᴏғɪʟᴇ ᴀɴᴅ sᴛᴀᴛs"),
@@ -1594,7 +1668,7 @@ def build_application():
     if not TOKEN: raise RuntimeError("BOT_TOKEN missing. Set it in Vercel environment variables.")
     init(); app=Application.builder().token(TOKEN).defaults(Defaults(parse_mode=ParseMode.HTML)).post_init(set_disha_commands).build()
     commands={
-        "start":start,"help":help_cmd,"about":about,"profile":profile,"bal":bal,
+        "start":start,"help":help_cmd,"about":about,"profile":profile,"bal":bal,"couple":couple,
         "level":level_cmd,"xp":level_cmd,"rank":rank_cmd,"streak":streak_cmd,
         "leaderboard":leaderboard,"daily":daily,"work":work,"give":give,"rob":rob,
         "kill":kill,"revive":revive,"protect":protect,"top":top,"puzzle":puzzle,
