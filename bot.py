@@ -699,7 +699,7 @@ async def ban_one(update,ctx):
     try:
         member=await ctx.bot.get_chat_member(update.effective_chat.id,user_obj.id)
         if member.status in ("administrator","creator"):
-            return await msg.reply_text("⛔ <b>ADMIN TARGET</b>\nDemote this member before banning.")
+            return await msg.reply_text("⛔ <b>ADMIN TARGET</b>\nDemote this member before banning.",parse_mode="HTML")
         await ctx.bot.ban_chat_member(update.effective_chat.id,user_obj.id)
         return await msg.reply_text(
             "🚫 <b>USER BANNED</b>\n"
