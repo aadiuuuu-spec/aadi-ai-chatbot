@@ -685,11 +685,11 @@ async def ban_one(update,ctx):
     if not user_obj:
         return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\nReply to the member or provide a valid Telegram user ID/mention.",parse_mode="HTML")
     if user_obj.id==update.effective_user.id or user_obj.id in OWNER_IDS:
-        return await msg.reply_text("⛔ Is user ko ban nahi kiya ja sakta.")
+        return await msg.reply_text("⛔ <b>ACTION DENIED</b>\nThis user is protected from bans.")
     try:
         member=await ctx.bot.get_chat_member(update.effective_chat.id,user_obj.id)
         if member.status in ("administrator","creator"):
-            return await msg.reply_text("⛔ Group admins ko pehle admin rights se remove karo; uske baad ban possible hoga.")
+            return await msg.reply_text("⛔ <b>ADMIN TARGET</b>\nDemote this member before banning.")
         await ctx.bot.ban_chat_member(update.effective_chat.id,user_obj.id)
         return await msg.reply_text(
             "🚫 <b>USER BANNED</b>\n"
@@ -702,11 +702,11 @@ async def ban_one(update,ctx):
         log.exception("Ban failed in chat %s for user %s",update.effective_chat.id,user_obj.id)
         reason=str(exc).lower()
         if "not enough rights" in reason or "administrator rights" in reason:
-            message="Bot ke paas ban members permission nahi hai. Use group admin bana kar 'Ban users' permission enable karo."
+            message="Missing permission: enable <b>Ban Users</b> for Disha."
         elif "user not found" in reason or "participant_id_invalid" in reason:
-            message="Telegram is user ko is group mein verify nahi kar paaya."
+            message="Telegram could not verify this member in the group."
         else:
-            message="Telegram ne ban request reject kar di. Bot admin permissions aur target status check karo."
+            message="Telegram rejected the ban request."
         return await msg.reply_text("❌ <b>BAN FAILED</b>\n"+html.escape(message),parse_mode="HTML")
 
 async def banall(update,ctx):
@@ -1098,7 +1098,7 @@ async def admin_list(update, ctx):
     if update.effective_chat.type not in ("group","supergroup"):
         return await update.message.reply_text("Yeh command group mein use karo.")
     try: admins=await ctx.bot.get_chat_administrators(update.effective_chat.id)
-    except Exception: return await update.message.reply_text("Admin list nahi mil saki. Bot ko group mein access chahiye.")
+    except Exception: return await update.message.reply_text("Unable to retrieve the administrator list.")
     lines=[f"• {mention(a.user)}"+(" 👑" if a.status=="creator" else "") for a in admins]
     await update.message.reply_text("🛡️ <b>Group admins</b>\n"+"\n".join(lines),parse_mode="HTML")
 
@@ -1108,7 +1108,7 @@ async def report_admins(update, ctx):
         return await msg.reply_text("Report command group mein use karo.")
     if not reported: return await msg.reply_text("Jis user ko report karna hai, uske message par reply karke /report likho.")
     try: admins=await ctx.bot.get_chat_administrators(update.effective_chat.id)
-    except Exception: return await msg.reply_text("Admins ki list nahi mil saki.")
+    except Exception: return await msg.reply_text("Unable to retrieve the administrator list.")
     reporter=mention(update.effective_user); subject=mention(reported)
     sent=0
     for a in admins:
@@ -1137,7 +1137,7 @@ def group_state(chat_id, key, value=None, write=False):
 async def group_admin(update, ctx, require_bot_admin=False):
     chat=update.effective_chat; msg=update.effective_message
     if not chat or chat.type not in ("group","supergroup"):
-        if msg: await msg.reply_text("This command can only be used in a group.")
+        if msg: await msg.reply_text("⛔ <b>GROUP ONLY</b>\nThis command can only be used in groups.")
         return False
     try:
         is_bot_owner=update.effective_user.id in OWNER_IDS
@@ -1149,10 +1149,10 @@ async def group_admin(update, ctx, require_bot_admin=False):
         if require_bot_admin:
             bot_member=await ctx.bot.get_chat_member(chat.id,ctx.bot.id)
             if bot_member.status!="administrator":
-                await msg.reply_text("⛔ <b>BOT PERMISSION REQUIRED</b>\nDisha must be an administrator in this group before this action can be performed.",parse_mode="HTML")
+                await msg.reply_text("⛔ <b>BOT PERMISSION REQUIRED</b>\nDisha must be a group administrator.",parse_mode="HTML")
                 return False
     except Exception:
-        await msg.reply_text("⚠️ <b>PERMISSION CHECK FAILED</b>\nTelegram could not verify the administrator permissions. Please try again.",parse_mode="HTML")
+        await msg.reply_text("⚠️ <b>PERMISSION CHECK FAILED</b>\nTelegram could not verify permissions.",parse_mode="HTML")
         return False
     return True
 
@@ -1184,7 +1184,7 @@ async def group_tools(update,ctx):
         try:
             member=await ctx.bot.get_chat_member(chat.id,user_obj.id)
             if member.status in ("administrator","creator"):
-                return await msg.reply_text("⛔ <b>KICK DENIED</b>\nRemove the member's administrator rights before attempting to kick them.",parse_mode="HTML")
+                return await msg.reply_text("⛔ <b>ADMIN TARGET</b>\nDemote this member before kicking.",parse_mode="HTML")
             await ctx.bot.ban_chat_member(chat.id,user_obj.id)
             await ctx.bot.unban_chat_member(chat.id,user_obj.id,only_if_banned=True)
             return await msg.reply_text(
