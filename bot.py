@@ -685,11 +685,11 @@ async def ban_one(update,ctx):
         return
     user_obj,error=await resolve_moderation_target(update,ctx,ctx.args)
     if error:
-        return await msg.reply_text("⚠️ <b>UNBAN NOT COMPLETED</b>\n"+html.escape(error),parse_mode="HTML")
+        return await msg.reply_text("⚠️ <b>BAN NOT COMPLETED</b>\n"+html.escape(error),parse_mode="HTML")
     if not user_obj:
         return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\nReply to the member or provide a valid Telegram user ID/mention.",parse_mode="HTML")
     if is_protected_moderation_target(user_obj.id,ctx.bot.id):
-        return await msg.reply_text(PROTECTED_MODERATION_REPLY)
+        return await msg.reply_text(protected_moderation_reply("ban"))
     if user_obj.id==update.effective_user.id:
         return await msg.reply_text("⛔ <b>ACTION DENIED</b>\nYou cannot ban yourself.")
     try:
@@ -757,7 +757,7 @@ async def unban_one(update,ctx):
     if error:
         return await msg.reply_text("⚠️ "+html.escape(error))
     if is_protected_moderation_target(user_obj.id,ctx.bot.id):
-        return await msg.reply_text(PROTECTED_MODERATION_REPLY)
+        return await msg.reply_text(protected_moderation_reply("unban"))
     try:
         await ctx.bot.unban_chat_member(update.effective_chat.id,user_obj.id,only_if_banned=True)
         return await msg.reply_text(
@@ -1182,7 +1182,17 @@ def replied_user(update):
     m=update.effective_message
     return m.reply_to_message.from_user if m and m.reply_to_message else None
 
-PROTECTED_MODERATION_REPLY = "𓆩 𝐏𝐀𝐏𝐀 𝐊𝐎 𝐖𝐀𝐑𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀! 𓆪"
+PROTECTED_MODERATION_REPLIES = {
+    "ban": "𓆩 𝐏𝐀𝐏𝐀 𝐊𝐎 𝐁𝐀𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀! 𓆪",
+    "kick": "𓆩 𝐏𝐀𝐏𝐀 𝐊𝐎 𝐊𝐈𝐂𝐊 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀! 𓆪",
+    "unban": "𓆩 𝐏𝐀𝐏𝐀 𝐊𝐎 𝐔𝐍𝐁𝐀𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀! 𓆪",
+    "mute": "𓆩 𝐏𝐀𝐏𝐀 𝐊𝐎 𝐌𝐔𝐓𝐄 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀! 𓆪",
+    "unmute": "𓆩 𝐏𝐀𝐏𝐀 𝐊𝐎 𝐔𝐍𝐌𝐔𝐓𝐄 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀! 𓆪",
+    "warn": "𓆩 𝐏𝐀𝐏𝐀 𝐊𝐎 𝐖𝐀𝐑𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀! 𓆪",
+}
+
+def protected_moderation_reply(command):
+    return PROTECTED_MODERATION_REPLIES.get(command, PROTECTED_MODERATION_REPLIES["warn"])
 
 def is_protected_moderation_target(user_id, bot_id=None):
     return user_id in OWNER_IDS or (bot_id is not None and user_id == bot_id)
@@ -1207,7 +1217,7 @@ async def group_tools(update,ctx):
         if not user_obj:
             return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\nReply to the member or provide a valid Telegram user ID/mention.",parse_mode="HTML")
         if is_protected_moderation_target(user_obj.id,ctx.bot.id):
-            return await msg.reply_text(PROTECTED_MODERATION_REPLY)
+            return await msg.reply_text(protected_moderation_reply("kick"))
         if user_obj.id==update.effective_user.id:
             return await msg.reply_text("⛔ <b>ACTION DENIED</b>\nYou cannot kick yourself.",parse_mode="HTML")
         try:
@@ -1231,7 +1241,7 @@ async def group_tools(update,ctx):
                 parse_mode="HTML")
     if cmd=="ban":
         if is_protected_moderation_target(target_user.id,ctx.bot.id):
-            return await msg.reply_text(PROTECTED_MODERATION_REPLY)
+            return await msg.reply_text(protected_moderation_reply("ban"))
         await ctx.bot.ban_chat_member(chat.id,target_user.id)
         return await msg.reply_text(
             "🚫 <b>USER BANNED</b>\n"
@@ -1244,7 +1254,7 @@ async def group_tools(update,ctx):
         uid=int(args[0]) if args and args[0].isdigit() else (target_user.id if target_user else None)
         if not uid: return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\nReply to the member's message or provide a valid Telegram user ID.",parse_mode="HTML")
         if is_protected_moderation_target(uid,ctx.bot.id):
-            return await msg.reply_text(PROTECTED_MODERATION_REPLY)
+            return await msg.reply_text(protected_moderation_reply("unban"))
         await ctx.bot.unban_chat_member(chat.id,uid,only_if_banned=True)
         return await msg.reply_text(
             "✅ <b>USER UNBANNED</b>\n"
@@ -1254,7 +1264,7 @@ async def group_tools(update,ctx):
             parse_mode="HTML")
     if cmd in {"mute","unmute"}:
         if is_protected_moderation_target(target_user.id,ctx.bot.id):
-            return await msg.reply_text(PROTECTED_MODERATION_REPLY)
+            return await msg.reply_text(protected_moderation_reply(cmd))
         if cmd=="mute":
             seconds=3600
             if args:
@@ -1277,7 +1287,7 @@ async def group_tools(update,ctx):
             parse_mode="HTML")
     if cmd=="warn":
         if is_protected_moderation_target(target_user.id,ctx.bot.id):
-            return await msg.reply_text(PROTECTED_MODERATION_REPLY)
+            return await msg.reply_text(protected_moderation_reply("warn"))
         with conn() as c:
             c.execute("INSERT INTO group_warns(chat_id,user_id,warnings) VALUES(?,?,1) ON CONFLICT(chat_id,user_id) DO UPDATE SET warnings=warnings+1",(chat.id,target_user.id))
             n=c.execute("SELECT warnings FROM group_warns WHERE chat_id=? AND user_id=?",(chat.id,target_user.id)).fetchone()["warnings"]
