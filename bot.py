@@ -690,6 +690,7 @@ async def ban_one(update,ctx):
         return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\nReply to the member or provide a valid Telegram user ID/mention.",parse_mode="HTML")
     if is_protected_moderation_target(user_obj.id,ctx.bot.id):
         return await msg.reply_text(protected_moderation_reply("ban"))
+    reason_line=moderation_reason_line(moderation_reason(update,ctx,"ban"))
     if user_obj.id==update.effective_user.id:
         return await msg.reply_text("⛔ <b>ACTION DENIED</b>\nYou cannot ban yourself.")
     try:
@@ -702,7 +703,8 @@ async def ban_one(update,ctx):
             f"👤 User: {mention(user_obj)}\n"
             f"🆔 ID: <code>{user_obj.id}</code>\n"
             f"📍 Group: <b>{html.escape(update.effective_chat.title or 'this group')}</b>\n"
-            f"🛡️ Action by: {mention(update.effective_user)}",
+            f"🛡️ Action by: {mention(update.effective_user)}"
+            f"{reason_line}",
             parse_mode="HTML")
     except Exception as exc:
         log.exception("Ban failed in chat %s for user %s",update.effective_chat.id,user_obj.id)
@@ -1194,6 +1196,21 @@ PROTECTED_MODERATION_REPLIES = {
 def protected_moderation_reply(command):
     return PROTECTED_MODERATION_REPLIES.get(command, PROTECTED_MODERATION_REPLIES["warn"])
 
+def moderation_reason(update, ctx, command):
+    args=list(ctx.args or [])
+    has_reply=bool(update.effective_message and update.effective_message.reply_to_message)
+    if has_reply:
+        if command=="mute" and args and args[0].isdigit():
+            args=args[1:]
+    elif args:
+        args=args[1:]  # first argument identifies the target
+        if command=="mute" and args and args[0].isdigit():
+            args=args[1:]  # mute duration is not the reason
+    return " ".join(args).strip()
+
+def moderation_reason_line(reason):
+    return f"\\n📝 <b>Reason:</b> {html.escape(reason)}" if reason else ""
+
 def is_protected_moderation_target(user_id, bot_id=None):
     return user_id in OWNER_IDS or (bot_id is not None and user_id == bot_id)
 
@@ -1202,6 +1219,7 @@ async def group_tools(update,ctx):
     cmd=msg.text.split()[0].split("@")[0].lstrip("/").lower() if msg and msg.text else ""
     args=ctx.args or []
     target_user=replied_user(update)
+    reason_line=moderation_reason_line(moderation_reason(update,ctx,cmd))
     if cmd in {"kick","ban","unban","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","setrules","filters","delfilters","filterlist","addblacklist","removeblock","blocklist","approve","unapprove","setwelcome","delsetwelcome","endgame"}:
         if not await group_admin(update,ctx,require_bot_admin=cmd in {"kick","ban","unban","mute","unmute","promote","demote","pin","unpin","purge","approve","unapprove"}):
             return
@@ -1231,7 +1249,8 @@ async def group_tools(update,ctx):
                 f"👤 <b>Member:</b> {mention(user_obj)}\n"
                 f"🆔 <b>User ID:</b> <code>{user_obj.id}</code>\n"
                 f"📍 <b>Group:</b> {html.escape(chat.title or 'this group')}\n"
-                f"🛡️ <b>Action by:</b> {mention(update.effective_user)}",
+                f"🛡️ <b>Action by:</b> {mention(update.effective_user)}"
+                f"{reason_line}",
                 parse_mode="HTML")
         except Exception:
             log.exception("Kick failed in chat %s for user %s",chat.id,user_obj.id)
@@ -1248,7 +1267,8 @@ async def group_tools(update,ctx):
             f"👤 <b>Member:</b> {mention(target_user)}\n"
             f"🆔 <b>User ID:</b> <code>{target_user.id}</code>\n"
             f"📍 <b>Group:</b> {html.escape(chat.title or 'Group')}\n"
-            f"🛡️ <b>Action by:</b> {mention(update.effective_user)}",
+            f"🛡️ <b>Action by:</b> {mention(update.effective_user)}"
+            f"{reason_line}",
             parse_mode="HTML")
     if cmd=="unban":
         uid=int(args[0]) if args and args[0].isdigit() else (target_user.id if target_user else None)
@@ -1260,7 +1280,8 @@ async def group_tools(update,ctx):
             "✅ <b>USER UNBANNED</b>\n"
             f"🆔 <b>User ID:</b> <code>{uid}</code>\n"
             f"📍 <b>Group:</b> {html.escape(chat.title or 'Group')}\n"
-            f"🛡️ <b>Action by:</b> {mention(update.effective_user)}",
+            f"🛡️ <b>Action by:</b> {mention(update.effective_user)}"
+            f"{reason_line}",
             parse_mode="HTML")
     if cmd in {"mute","unmute"}:
         if is_protected_moderation_target(target_user.id,ctx.bot.id):
@@ -1276,14 +1297,16 @@ async def group_tools(update,ctx):
                 "🔇 <b>USER MUTED</b>\n"
                 f"👤 <b>Member:</b> {mention(target_user)}\n"
                 f"⏱️ <b>Duration:</b> {seconds//60} minute(s)\n"
-                f"🛡️ <b>Action by:</b> {mention(update.effective_user)}",
+                f"🛡️ <b>Action by:</b> {mention(update.effective_user)}"
+                f"{reason_line}",
                 parse_mode="HTML")
         from telegram import ChatPermissions
         await ctx.bot.restrict_chat_member(chat.id,target_user.id,permissions=ChatPermissions(can_send_messages=True,can_send_audios=True,can_send_documents=True,can_send_photos=True,can_send_videos=True,can_send_video_notes=True,can_send_voice_notes=True,can_send_polls=True,can_send_other_messages=True,can_add_web_page_previews=True))
         return await msg.reply_text(
             "🔊 <b>USER UNMUTED</b>\n"
             f"👤 <b>Member:</b> {mention(target_user)}\n"
-            f"🛡️ <b>Action by:</b> {mention(update.effective_user)}",
+            f"🛡️ <b>Action by:</b> {mention(update.effective_user)}"
+            f"{reason_line}",
             parse_mode="HTML")
     if cmd=="warn":
         if is_protected_moderation_target(target_user.id,ctx.bot.id):
@@ -1295,7 +1318,8 @@ async def group_tools(update,ctx):
             "⚠️ <b>WARNING ISSUED</b>\n"
             f"👤 <b>Member:</b> {mention(target_user)}\n"
             f"📊 <b>Total warnings:</b> {n}\n"
-            f"🛡️ <b>Issued by:</b> {mention(update.effective_user)}",
+            f"🛡️ <b>Issued by:</b> {mention(update.effective_user)}"
+            f"{reason_line}",
             parse_mode="HTML")
     if cmd in {"warnings","resetwarns"}:
         t=target_user
@@ -1318,7 +1342,8 @@ async def group_tools(update,ctx):
         return await msg.reply_text(
             ("👑 <b>ADMIN RIGHTS GRANTED</b>" if cmd=="promote" else "🛡️ <b>ADMIN RIGHTS REMOVED</b>")+
             f"\n👤 <b>Member:</b> {mention(target_user)}\n"
-            f"🛡️ <b>Action by:</b> {mention(update.effective_user)}",
+            f"🛡️ <b>Action by:</b> {mention(update.effective_user)}"
+            f"{reason_line}",
             parse_mode="HTML")
     if cmd=="pin":
         m=msg.reply_to_message
