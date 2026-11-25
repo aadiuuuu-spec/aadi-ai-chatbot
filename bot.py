@@ -690,7 +690,7 @@ async def broadcast(update,ctx):
     with conn() as c: ids=c.execute("SELECT id FROM users").fetchall()
     sent=0
     for row in ids:
-        try: await ctx.bot.send_message(row["id"]," ".join(ctx.args)); sent+=1; await asyncio.sleep(.04)
+        try: await ctx.bot.send_message(row["id"]," ".join(ctx.args),parse_mode=None); sent+=1; await asyncio.sleep(.04)
         except Exception: pass
     await update.message.reply_text(small_caps_html(f"📢 Broadcast sent to {sent} users."))
 
@@ -797,7 +797,7 @@ async def say(update,ctx):
     reply_id=update.message.reply_to_message.message_id if update.message.reply_to_message else None
     try: await update.message.delete()
     except Exception: pass
-    await ctx.bot.send_message(update.effective_chat.id," ".join(ctx.args),reply_to_message_id=reply_id)
+    await ctx.bot.send_message(update.effective_chat.id," ".join(ctx.args),parse_mode=None,reply_to_message_id=reply_id)
 
 def clean_name(raw):
     t=unicodedata.normalize("NFKC",raw or "")
@@ -884,7 +884,7 @@ async def chat_reply(update,ctx):
         if msg.text.strip().lower().startswith("/"):
             pass
         else:
-            return await msg.reply_text("Not quite—ek aur try karo, ya /puzzle se naya sawaal lo.")
+            return await msg.reply_text("Not quite—ek aur try karo, ya /puzzle se naya sawaal lo.",parse_mode=None)
     if update.effective_chat.type!="private":
         to_bot=msg.reply_to_message and msg.reply_to_message.from_user and msg.reply_to_message.from_user.id==ctx.bot.id
         mentions_bot=bool(re.search(r"(?<![\w])disha(?![\w])",msg.text,re.IGNORECASE))
@@ -896,7 +896,7 @@ async def chat_reply(update,ctx):
     if answer:
         if msg.text.strip().lower()==answer:
             with conn() as c: c.execute("UPDATE users SET coins=coins+50 WHERE id=?",(update.effective_user.id,))
-            return await msg.reply_text("🎉 Correct answer! +50 coins added to your balance.")
+            return await msg.reply_text("🎉 Correct answer! +50 coins added to your balance.",parse_mode=None)
         ctx.user_data["puzzle_answer"]=answer
         return await msg.reply_text("Not quite—ek aur try karo, ya /puzzle se naya sawaal lo.")
     history=load_chat_history(update.effective_chat.id,update.effective_user.id)
@@ -904,7 +904,7 @@ async def chat_reply(update,ctx):
     quick=quick_answer(msg.text,name)
     if quick:
         save_chat_turns(update.effective_chat.id,update.effective_user.id,msg.text,quick)
-        sent=await msg.reply_text(quick)
+        sent=await msg.reply_text(quick,parse_mode=None)
         await auto_reaction(ctx.bot,detect_mood(msg.text),update.effective_chat.id,msg.message_id)
         return sent
     try:
@@ -914,7 +914,7 @@ async def chat_reply(update,ctx):
         log.exception("Groq chat request failed")
         return await msg.reply_text("Abhi reply generate nahi ho paaya. Thodi der baad ek baar phir message karna.")
     save_chat_turns(update.effective_chat.id,update.effective_user.id,msg.text,answer)
-    await msg.reply_text(answer[:4000])
+    await msg.reply_text(answer[:4000],parse_mode=None)
     await auto_reaction(ctx.bot,detect_mood(msg.text),update.effective_chat.id,msg.message_id)
 
 async def sticker_reply(update,ctx):
@@ -1487,7 +1487,7 @@ async def group_text_tools(update,ctx):
     filters_data=json.loads(group_state(chat.id,"filters") or "{}")
     for word,reply in filters_data.items():
         if word in text:
-            await msg.reply_text(reply); break
+            await msg.reply_text(reply,parse_mode=None); break
 
 
 async def safe_group_tools(update, ctx):
