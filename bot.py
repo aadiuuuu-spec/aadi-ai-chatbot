@@ -1231,6 +1231,14 @@ async def group_tools(update,ctx):
             "Reply to the target member's message and run this command again.",
             parse_mode="HTML")
     if cmd=="kick":
+        # A bare /kick replying to Disha's own message is not a request to kick Disha.
+        # Require an explicit target in that case; owner targets still trigger protection.
+        replied = replied_user(update)
+        if not args and (not replied or replied.id == ctx.bot.id):
+            return await msg.reply_text(
+                "⚠️ <b>TARGET REQUIRED</b>\n"
+                "Reply to the member's message, or provide their @username / Telegram user ID.",
+                parse_mode="HTML")
         user_obj,error=await resolve_moderation_target(update,ctx,args)
         if error:
             return await msg.reply_text("⚠️ <b>KICK NOT COMPLETED</b>\n"+html.escape(error),parse_mode="HTML")
