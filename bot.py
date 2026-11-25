@@ -683,6 +683,9 @@ async def ban_one(update,ctx):
     msg=update.effective_message
     if not await group_admin(update,ctx,require_bot_admin=True):
         return
+    # Do not treat a reply to Disha's own warning message as a request to moderate Disha.
+    if not ctx.args and replied_user(update) and replied_user(update).id == ctx.bot.id:
+        return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\nReply to the actual member's message or provide their @username / Telegram user ID.",parse_mode="HTML")
     user_obj,error=await resolve_moderation_target(update,ctx,ctx.args)
     if error:
         return await msg.reply_text("⚠️ <b>BAN NOT COMPLETED</b>\n"+html.escape(error),parse_mode="HTML")
@@ -1187,12 +1190,12 @@ def replied_user(update):
     return m.reply_to_message.from_user if m and m.reply_to_message else None
 
 PROTECTED_MODERATION_REPLIES = {
-    "ban": "𓆩 𝐏𝐀𝐏𝐀 𝐊𝐎 𝐁𝐀𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀! 𓆪",
-    "kick": "𓆩 𝐏𝐀𝐏𝐀 𝐊𝐎 𝐁𝐀𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀! 𓆪",
+    "ban": "𝐏𝐀𝐏𝐀 𝐊𝐎 𝐁𝐀𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀!",
+    "kick": "𝐏𝐀𝐏𝐀 𝐊𝐎 𝐁𝐀𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀!",
     "unban": "𝐁𝐀𝐁𝐘 𝐘𝐎𝐔’𝐑𝐄 𝐂𝐔𝐓𝐄 👀",
-    "mute": "𓆩 𝐏𝐀𝐏𝐀 𝐊𝐎 𝐁𝐀𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀! 𓆪",
+    "mute": "𝐏𝐀𝐏𝐀 𝐊𝐎 𝐁𝐀𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀!",
     "unmute": "𝐁𝐀𝐁𝐘 𝐘𝐎𝐔’𝐑𝐄 𝐂𝐔𝐓𝐄 👀",
-    "warn": "𓆩 𝐏𝐀𝐏𝐀 𝐊𝐎 𝐁𝐀𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀! 𓆪",
+    "warn": "𝐏𝐀𝐏𝐀 𝐊𝐎 𝐁𝐀𝐍 𝐊𝐀𝐑𝐄𝐆𝐀? 𝐒𝐎 𝐉𝐀!",
 }
 
 def protected_moderation_reply(command):
@@ -1221,6 +1224,8 @@ async def group_tools(update,ctx):
     cmd=msg.text.split()[0].split("@")[0].lstrip("/").lower() if msg and msg.text else ""
     args=ctx.args or []
     target_user=replied_user(update)
+    if target_user and target_user.id == ctx.bot.id and not args:
+        target_user=None
     reason_line=moderation_reason_line(moderation_reason(update,ctx,cmd))
     if cmd in {"kick","ban","unban","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","setrules","filters","delfilters","filterlist","addblacklist","removeblock","blocklist","approve","unapprove","setwelcome","delsetwelcome","endgame"}:
         if not await group_admin(update,ctx,require_bot_admin=cmd in {"kick","ban","unban","mute","unmute","promote","demote","pin","unpin","purge","approve","unapprove"}):
