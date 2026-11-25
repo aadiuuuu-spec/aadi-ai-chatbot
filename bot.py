@@ -959,25 +959,24 @@ async def member_left(update, ctx):
     username = f"@{clean(member.username)}" if member.username else "Not set"
     name = clean(member.full_name, username if username != "Not set" else "Unknown member")
     group_name = clean(chat.title, "Group")
-    language = clean(member.language_code, "Not set")
 
     if joined:
-        heading = f"🎉 <b>WELCOME TO {group_name}!</b>"
+        heading = f"👋 <b>WELCOME TO {group_name}!</b>"
         event_label = "Joined"
         custom_welcome = group_state(chat.id, "welcome")
-        footer = ("✨ " + html.escape(custom_welcome)) if custom_welcome else "✨ <i>Glad to have you here!</i>"
+        footer = ("✅ " + html.escape(custom_welcome)) if custom_welcome else "✅ <i>Glad to have you here!</i>"
     else:
-        heading = "🚪 <b>MEMBER LEFT</b>"
+        heading = "📤 <b>MEMBER LEFT</b>"
         event_label = "Left"
         footer = "👋 <i>Goodbye!</i>"
 
     message = (
         f"{heading}\n\n"
         f"👤 <b>Name:</b> {name}\n"
-        f"🔖 <b>Username:</b> {username}\n"
+        f"🏷️ <b>Username:</b> {username}\n"
         f"🆔 <b>User ID:</b> <code>{member.id}</code>\n"
         f"👥 <b>Group:</b> {group_name}\n"
-        f"🌐 <b>Language:</b> {language}\n\n"
+        "\n"
         f"{footer}"
     )
 
@@ -1277,7 +1276,7 @@ async def group_tools(update,ctx):
             await ctx.bot.ban_chat_member(chat.id,user_obj.id)
             await ctx.bot.unban_chat_member(chat.id,user_obj.id,only_if_banned=True)
             return await msg.reply_text(small_caps_html(
-                "👢 <b>USER KICKED</b>\n"
+                "✅ <b>USER KICKED</b>\n"
                 f"👤 <b>Member:</b> {mention(user_obj)}\n"
                 f"🆔 <b>User ID:</b> <code>{user_obj.id}</code>\n"
                 f"📍 <b>Group:</b> {html.escape(chat.title or 'this group')}\n"
