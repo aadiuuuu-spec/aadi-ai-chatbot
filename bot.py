@@ -8,8 +8,11 @@ SMALL_CAPS_MAP = str.maketrans({
 def small_caps_html(value):
     if not isinstance(value, str):
         return value
+    # Flatten existing quote tags, then quote the complete command response.
+    value = re.sub(r"</?blockquote(?:\s+[^>]*)?>", "", value, flags=re.IGNORECASE)
     parts = re.split(r'(<[^>]*>|&(?:[A-Za-z]+|#\d+|#x[0-9A-Fa-f]+);|https?://[^\s<]+)', value)
-    return "".join(part if (part.startswith("<") or part.startswith("&") or part.startswith("http://") or part.startswith("https://")) else part.translate(SMALL_CAPS_MAP) for part in parts)
+    formatted = "".join(part if (part.startswith("<") or part.startswith("&") or part.startswith("http://") or part.startswith("https://")) else part.translate(SMALL_CAPS_MAP) for part in parts)
+    return f"<blockquote>{formatted}</blockquote>"
 
 from collections import defaultdict, deque
 from datetime import datetime
@@ -18,7 +21,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 from telegram import BotCommand, BotCommandScopeDefault, BotCommandScopeAllPrivateChats, BotCommandScopeAllGroupChats, Update, InlineKeyboardButton, InlineKeyboardMarkup, MessageEntity, ReactionTypeEmoji
-from telegram.ext import ChatMemberHandler
+from telegram.ext import ChatMemberHandler, Defaults
 from telegram.constants import ParseMode
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, ContextTypes, filters
 
@@ -169,7 +172,7 @@ ACTIONS = {
     "welcome":"👋 Disha welcomed you!",
     "bye":"👋 Disha said goodbye!",
     "sorry":"🥺 Disha said sorry!",
-    "slap":"🫳 Disha sent a playful slap reaction!",
+    "slap":"✋ Disha sent a playful slap reaction!",
 }
 ACTION_TARGET = {
     "love":"💛 {me} sent love to {them}!",
@@ -198,7 +201,7 @@ ACTION_TARGET = {
     "welcome":"👋 {me} welcomed {them}!",
     "bye":"👋 {me} waved goodbye to {them}!",
     "sorry":"🥺 {me} apologised to {them}!",
-    "slap":"🫳 {me} sent {them} a playful slap reaction!",
+    "slap":"✋ {me} sent {them} a playful slap reaction!",
 }
 
 class PostgresCompat:
@@ -678,7 +681,7 @@ async def ttt_move(update,ctx):
 async def action(update,ctx):
     touch(update.effective_user); cmd=update.message.text.split()[0].lstrip("/").split("@")[0].lower()
     me,them,rid=action_mentions(update,ctx); text=ACTION_TARGET[cmd].format(me=me,them=them) if them else ACTIONS[cmd]
-    await ctx.bot.send_message(small_caps_html(update.effective_chat.id),text,parse_mode="HTML",reply_to_message_id=rid)
+    await ctx.bot.send_message(chat_id=update.effective_chat.id,text=small_caps_html(text),parse_mode="HTML",reply_to_message_id=rid)
     await sticker(ctx.bot,cmd,update.effective_chat.id,rid)
 
 async def broadcast(update,ctx):
@@ -977,6 +980,8 @@ async def member_left(update, ctx):
         f"🌐 <b>Language:</b> {language}\n\n"
         f"{footer}"
     )
+
+    message = f"<blockquote>{message}</blockquote>"
 
     try:
         photos = await ctx.bot.get_user_profile_photos(member.id, limit=1)
@@ -1588,7 +1593,7 @@ async def set_disha_commands(application):
 
 def build_application():
     if not TOKEN: raise RuntimeError("BOT_TOKEN missing. Set it in Vercel environment variables.")
-    init(); app=Application.builder().token(TOKEN).post_init(set_disha_commands).build()
+    init(); app=Application.builder().token(TOKEN).defaults(Defaults(parse_mode=ParseMode.HTML)).post_init(set_disha_commands).build()
     commands={
         "start":start,"help":help_cmd,"about":about,"profile":profile,"bal":bal,
         "level":level_cmd,"xp":level_cmd,"rank":rank_cmd,"streak":streak_cmd,
