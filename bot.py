@@ -1268,13 +1268,17 @@ def build_couple_card(first_name, second_name, first_photo, second_photo, percen
         gd.ellipse((x-r,y-r,x+r,y+r),fill=(255,35,155,48))
     im=Image.alpha_composite(im.convert("RGBA"),glow.filter(ImageFilter.GaussianBlur(75)))
     d=ImageDraw.Draw(im)
-    try:
-        sub=ImageFont.truetype("DejaVuSans.ttf",25)
-        namefont=ImageFont.truetype("DejaVuSans-Bold.ttf",27)
-        scorefont=ImageFont.truetype("DejaVuSans-Bold.ttf",58)
-        capfont=ImageFont.truetype("DejaVuSans.ttf",23)
-    except Exception:
-        sub=namefont=scorefont=capfont=ImageFont.load_default()
+    def load_font(size):
+        for path in ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf","/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf","DejaVuSans.ttf","DejaVuSans-Bold.ttf"):
+            try:
+                return ImageFont.truetype(path,size)
+            except Exception:
+                continue
+        return ImageFont.load_default()
+    sub=load_font(25)
+    namefont=load_font(27)
+    scorefont=load_font(58)
+    capfont=load_font(23)
     d.rounded_rectangle((28,25,W-28,H-25),radius=38,outline=(255,120,205,220),width=4)
     d.text((W//2,72),"♡  TODAY'S MATCH  ♡",font=sub,fill=(255,210,235),anchor="mt")
     centers=[(330,345),(950,345)]
@@ -1298,7 +1302,10 @@ def build_couple_card(first_name, second_name, first_photo, second_photo, percen
         im.paste(avatar,(cx-145,cy-145),mask)
         d=ImageDraw.Draw(im)
         d.ellipse((cx-152,cy-152,cx+152,cy+152),outline=(255,215,245),width=8)
-    d.text((640,330),"♥",font=ImageFont.truetype("DejaVuSans.ttf",72) if True else sub,fill=(255,105,190),anchor="mm")
+    # Draw a heart with vector shapes so this works even without Unicode fonts.
+    d.ellipse((605,304,645,344),fill=(255,105,190))
+    d.ellipse((635,304,675,344),fill=(255,105,190))
+    d.polygon([(605,328),(675,328),(640,370)],fill=(255,105,190))
     # Name plates
     d.rounded_rectangle((130,525,530,585),radius=28,fill=(92,12,65,235),outline=(255,135,210),width=3)
     d.rounded_rectangle((750,525,1150,585),radius=28,fill=(92,12,65,235),outline=(255,135,210),width=3)
@@ -1314,7 +1321,7 @@ def build_couple_card(first_name, second_name, first_photo, second_photo, percen
     d.rounded_rectangle((260,650,1020,658),radius=5,fill=(105,35,80))
     d.rounded_rectangle((260,650,260+int(760*percent/100),658),radius=5,fill=(255,105,195))
     d.text((640,685),caption,font=capfont,fill=(255,230,246),anchor="mm")
-    watermark=ImageFont.truetype("DejaVuSans-Bold.ttf",18)
+    watermark=load_font(18)
     d.text((W-48,H-34),"Disha",font=watermark,fill=(255,205,232,115),anchor="rb",stroke_width=0)
     return im.convert("RGB")
 
