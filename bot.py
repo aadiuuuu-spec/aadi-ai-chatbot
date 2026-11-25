@@ -1242,16 +1242,81 @@ def is_protected_moderation_target(user_id, bot_id=None):
 COUPLE_LAST_PAIRS = {}
 
 COUPLE_CAPTIONS = [
-    "✨ The group chat did not see this coming.",
-    "🔥 Chemistry detected. Evidence still pending.",
-    "💬 One sends paragraphs, the other replies with 'hmm'.",
-    "🌙 Unexpected duo unlocked. Let's see what happens.",
-    "🧩 Somehow, these two fit the same puzzle.",
-    "🚦 Green flag energy… for now.",
-    "😂 The group admins may need to investigate this pairing.",
-    "⭐ Plot twist: this match actually has potential.",
-    "🎭 A legendary duo or a legendary argument? Time will tell."
+    "The group chat did not see this coming.",
+    "Chemistry detected. Evidence still pending.",
+    "One sends paragraphs, the other replies with 'hmm'.",
+    "Unexpected duo unlocked. Let's see what happens.",
+    "Somehow, these two fit the same puzzle.",
+    "Green flag energy... for now.",
+    "The group admins may need to investigate this pairing.",
+    "Plot twist: this match actually has potential.",
+    "A legendary duo or a legendary argument? Time will tell."
 ]
+
+def build_couple_card(first_name, second_name, first_photo, second_photo, percent, caption):
+    from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter
+    W,H=1280,720
+    im=Image.new("RGB",(W,H))
+    px=im.load()
+    for y in range(H):
+        for x in range(W):
+            t=(x/W)*0.55+(y/H)*0.45
+            px[x,y]=(int(54+155*t),int(8+24*t),int(48+105*t))
+    glow=Image.new("RGBA",(W,H),(0,0,0,0))
+    gd=ImageDraw.Draw(glow)
+    for x,y,r in [(80,90,180),(1190,100,210),(640,690,260),(640,350,130)]:
+        gd.ellipse((x-r,y-r,x+r,y+r),fill=(255,35,155,48))
+    im=Image.alpha_composite(im.convert("RGBA"),glow.filter(ImageFilter.GaussianBlur(75)))
+    d=ImageDraw.Draw(im)
+    try:
+        title=ImageFont.truetype("DejaVuSans-Bold.ttf",48)
+        sub=ImageFont.truetype("DejaVuSans.ttf",25)
+        namefont=ImageFont.truetype("DejaVuSans-Bold.ttf",27)
+        scorefont=ImageFont.truetype("DejaVuSans-Bold.ttf",58)
+        capfont=ImageFont.truetype("DejaVuSans.ttf",23)
+    except Exception:
+        title=sub=namefont=scorefont=capfont=ImageFont.load_default()
+    d.rounded_rectangle((28,25,W-28,H-25),radius=38,outline=(255,120,205,220),width=4)
+    d.text((W//2,55),"DISHA'S COUPLE MATCH",font=title,fill=(255,238,250),anchor="mt",stroke_width=1,stroke_fill=(190,35,125))
+    d.text((W//2,122),"TODAY'S RANDOM DUO",font=sub,fill=(255,185,224),anchor="mt")
+    centers=[(330,345),(950,345)]
+    photos=[first_photo,second_photo]
+    for (cx,cy),raw in zip(centers,photos):
+        d.ellipse((cx-162,cy-162,cx+162,cy+162),fill=(255,90,190),outline=(255,230,250),width=12)
+        if raw:
+            try:
+                avatar=Image.open(io.BytesIO(raw)).convert("RGB")
+                avatar=ImageOps.fit(avatar,(290,290),centering=(0.5,0.5))
+            except Exception:
+                avatar=None
+        else: avatar=None
+        if avatar is None:
+            avatar=Image.new("RGB",(290,290),(120,35,95))
+            ad=ImageDraw.Draw(avatar)
+            ad.ellipse((70,38,220,188),fill=(255,160,215))
+            ad.rounded_rectangle((35,165,255,330),radius=85,fill=(255,115,185))
+        mask=Image.new("L",(290,290),0)
+        ImageDraw.Draw(mask).ellipse((0,0,289,289),fill=255)
+        im.paste(avatar,(cx-145,cy-145),mask)
+        d=ImageDraw.Draw(im)
+        d.ellipse((cx-152,cy-152,cx+152,cy+152),outline=(255,215,245),width=8)
+    d.text((640,330),"♥",font=ImageFont.truetype("DejaVuSans.ttf",72) if True else sub,fill=(255,105,190),anchor="mm")
+    # Name plates
+    d.rounded_rectangle((130,525,530,585),radius=28,fill=(92,12,65,235),outline=(255,135,210),width=3)
+    d.rounded_rectangle((750,525,1150,585),radius=28,fill=(92,12,65,235),outline=(255,135,210),width=3)
+    def fit_name(value):
+        value=(value or "Member").strip()
+        while len(value)>20: value=value[:19]+"…"
+        return value
+    d.text((330,555),fit_name(first_name),font=namefont,fill=(255,242,250),anchor="mm")
+    d.text((950,555),fit_name(second_name),font=namefont,fill=(255,242,250),anchor="mm")
+    d.rounded_rectangle((495,430,785,515),radius=34,fill=(130,15,91,245),outline=(255,130,210),width=3)
+    d.text((640,468),str(percent)+"%",font=scorefont,fill=(255,235,248),anchor="mm")
+    d.text((640,610),"COMPATIBILITY",font=sub,fill=(255,178,220),anchor="mm")
+    d.rounded_rectangle((260,650,1020,658),radius=5,fill=(105,35,80))
+    d.rounded_rectangle((260,650,260+int(760*percent/100),658),radius=5,fill=(255,105,195))
+    d.text((640,685),caption,font=capfont,fill=(255,230,246),anchor="mm")
+    return im.convert("RGB")
 
 async def couple(update,ctx):
     msg=update.effective_message
@@ -1271,11 +1336,9 @@ async def couple(update,ctx):
         rows=c.execute("""SELECT user_id,display_name FROM group_members
             WHERE chat_id=? AND user_id<>? ORDER BY display_name""",(chat.id,ctx.bot.id)).fetchall()
     members=[]
-    seen=set()
     for row in rows:
         uid=int(row["user_id"])
-        if uid not in seen:
-            seen.add(uid)
+        if all(existing[0]!=uid for existing in members):
             members.append((uid,row["display_name"] or "Member"))
     if len(members)<2:
         return await msg.reply_text(small_caps_html(
@@ -1291,22 +1354,31 @@ async def couple(update,ctx):
             pair=list(random.choice(alternatives))
     COUPLE_LAST_PAIRS[chat.id]=tuple(sorted((pair[0][0],pair[1][0])))
     percent=random.randint(1,100)
-    filled=round(percent/10)
-    bar="█"*filled+"░"*(10-filled)
     caption=random.choice(COUPLE_CAPTIONS)
-    first=f'<a href="tg://user?id={pair[0][0]}">{html.escape(pair[0][1])}</a>'
-    second=f'<a href="tg://user?id={pair[1][0]}">{html.escape(pair[1][1])}</a>'
-    response=(
-        "𓆩 <b>ＤＩＳＨＡ'Ｓ  ＭＡＴＣＨＭＡＫＥＲ</b> 𓆪\n"
-        "━━━━━━━━━━━━━━━━━━\n"
-        f"♡  {first}  ×  {second}  ♡\n"
-        "━━━━━━━━━━━━━━━━━━\n"
-        f"💗 <b>Compatibility:</b> {percent}%\n"
-        f"<code>{bar}</code>\n\n"
-        f"{caption}\n\n"
-        "<i>「 Just a random group game — no real-life prediction! 」</i>"
-    )
-    await msg.reply_text(small_caps_html(response),parse_mode="HTML")
+    photos=[]
+    for uid,_ in pair:
+        raw=None
+        try:
+            profile=await ctx.bot.get_user_profile_photos(uid,limit=1)
+            if profile.total_count and profile.photos:
+                photo=profile.photos[0][-1]
+                file=await ctx.bot.get_file(photo.file_id)
+                raw=bytes(await file.download_as_bytearray())
+        except Exception:
+            log.info("Could not fetch couple profile photo for user %s",uid,exc_info=True)
+        photos.append(raw)
+    try:
+        card=build_couple_card(pair[0][1],pair[1][1],photos[0],photos[1],percent,caption)
+        output=io.BytesIO()
+        card.save(output,format="PNG",optimize=True)
+        output.seek(0)
+        output.name="disha_couple_match.png"
+        await msg.reply_photo(photo=output,caption="💗 Disha's Couple Match | Just a random group game, not a real-life prediction.")
+    except Exception:
+        log.exception("Could not render couple match card")
+        await msg.reply_text(small_caps_html(
+            f"💗 <b>DISHA'S COUPLE MATCH</b>\n{html.escape(pair[0][1])} × {html.escape(pair[1][1])}\nCompatibility: <b>{percent}%</b>\n{html.escape(caption)}"
+        ),parse_mode="HTML")
 
 async def group_tools(update,ctx):
     msg=update.effective_message; chat=update.effective_chat
