@@ -1269,16 +1269,14 @@ def build_couple_card(first_name, second_name, first_photo, second_photo, percen
     im=Image.alpha_composite(im.convert("RGBA"),glow.filter(ImageFilter.GaussianBlur(75)))
     d=ImageDraw.Draw(im)
     try:
-        title=ImageFont.truetype("DejaVuSans-Bold.ttf",48)
         sub=ImageFont.truetype("DejaVuSans.ttf",25)
         namefont=ImageFont.truetype("DejaVuSans-Bold.ttf",27)
         scorefont=ImageFont.truetype("DejaVuSans-Bold.ttf",58)
         capfont=ImageFont.truetype("DejaVuSans.ttf",23)
     except Exception:
-        title=sub=namefont=scorefont=capfont=ImageFont.load_default()
+        sub=namefont=scorefont=capfont=ImageFont.load_default()
     d.rounded_rectangle((28,25,W-28,H-25),radius=38,outline=(255,120,205,220),width=4)
-    d.text((W//2,55),"DISHA'S COUPLE MATCH",font=title,fill=(255,238,250),anchor="mt",stroke_width=1,stroke_fill=(190,35,125))
-    d.text((W//2,122),"TODAY'S RANDOM DUO",font=sub,fill=(255,185,224),anchor="mt")
+    d.text((W//2,72),"♡  TODAY'S MATCH  ♡",font=sub,fill=(255,210,235),anchor="mt")
     centers=[(330,345),(950,345)]
     photos=[first_photo,second_photo]
     for (cx,cy),raw in zip(centers,photos):
@@ -1316,6 +1314,8 @@ def build_couple_card(first_name, second_name, first_photo, second_photo, percen
     d.rounded_rectangle((260,650,1020,658),radius=5,fill=(105,35,80))
     d.rounded_rectangle((260,650,260+int(760*percent/100),658),radius=5,fill=(255,105,195))
     d.text((640,685),caption,font=capfont,fill=(255,230,246),anchor="mm")
+    watermark=ImageFont.truetype("DejaVuSans-Bold.ttf",18)
+    d.text((W-48,H-34),"Disha",font=watermark,fill=(255,205,232,115),anchor="rb",stroke_width=0)
     return im.convert("RGB")
 
 async def couple(update,ctx):
@@ -1373,11 +1373,11 @@ async def couple(update,ctx):
         card.save(output,format="PNG",optimize=True)
         output.seek(0)
         output.name="disha_couple_match.png"
-        await msg.reply_photo(photo=output,caption="💗 Disha's Couple Match | Just a random group game, not a real-life prediction.")
+        await msg.reply_photo(photo=output,caption="💗 Just a random group game — not a real-life prediction.")
     except Exception:
         log.exception("Could not render couple match card")
         await msg.reply_text(small_caps_html(
-            f"💗 <b>DISHA'S COUPLE MATCH</b>\n{html.escape(pair[0][1])} × {html.escape(pair[1][1])}\nCompatibility: <b>{percent}%</b>\n{html.escape(caption)}"
+            f"💗 <b>COUPLE MATCH</b>\n{html.escape(pair[0][1])} × {html.escape(pair[1][1])}\nCompatibility: <b>{percent}%</b>\n{html.escape(caption)}"
         ),parse_mode="HTML")
 
 async def group_tools(update,ctx):
