@@ -1,4 +1,16 @@
 import asyncio, base64, html, io, logging, os, random, re, sqlite3, time, unicodedata
+
+SMALL_CAPS_MAP = str.maketrans({
+    "a":"ᴀ","b":"ʙ","c":"ᴄ","d":"ᴅ","e":"ᴇ","f":"ғ","g":"ɢ","h":"ʜ","i":"ɪ","j":"ᴊ","k":"ᴋ","l":"ʟ","m":"ᴍ","n":"ɴ","o":"ᴏ","p":"ᴘ","q":"ǫ","r":"ʀ","s":"s","t":"ᴛ","u":"ᴜ","v":"ᴠ","w":"ᴡ","x":"x","y":"ʏ","z":"ᴢ",
+    "A":"ᴀ","B":"ʙ","C":"ᴄ","D":"ᴅ","E":"ᴇ","F":"ғ","G":"ɢ","H":"ʜ","I":"ɪ","J":"ᴊ","K":"ᴋ","L":"ʟ","M":"ᴍ","N":"ɴ","O":"ᴏ","P":"ᴘ","Q":"ǫ","R":"ʀ","S":"s","T":"ᴛ","U":"ᴜ","V":"ᴠ","W":"ᴡ","X":"x","Y":"ʏ","Z":"ᴢ",
+})
+
+def small_caps_html(value):
+    if not isinstance(value, str):
+        return value
+    parts = re.split(r'(<[^>]*>|&(?:[A-Za-z]+|#\\d+|#x[0-9A-Fa-f]+);|https?://[^\\s<]+)', value)
+    return "".join(part if (part.startswith("<") or part.startswith("&") or part.startswith("http://") or part.startswith("https://")) else part.translate(SMALL_CAPS_MAP) for part in parts)
+
 from collections import defaultdict, deque
 from datetime import datetime
 from pathlib import Path
@@ -438,23 +450,23 @@ async def auto_reaction(bot,kind,cid,reply_id):
         log.debug("Telegram emoji reaction unavailable for chat %s",cid,exc_info=True)
 
 async def add_sticker(update,ctx):
-    if update.effective_user.id not in OWNER_IDS: return await update.message.reply_text("⛔ Owner only.")
+    if update.effective_user.id not in OWNER_IDS: return await update.message.reply_text(small_caps_html("⛔ Owner only."))
     cmd=update.message.text.split()[0].lstrip("/").split("@")[0].lower(); reply=update.message.reply_to_message
-    if not reply or not reply.sticker: return await update.message.reply_text(f"Sticker par reply karke /{cmd} likho.")
+    if not reply or not reply.sticker: return await update.message.reply_text(small_caps_html(f"Sticker par reply karke /{cmd} likho."))
     st=reply.sticker
     with conn() as c: c.execute("INSERT INTO custom_stickers(action_name,file_id,unique_id) VALUES(?,?,?) ON CONFLICT(file_id) DO NOTHING",(cmd[3:],st.file_id,st.file_unique_id))
-    await update.message.reply_text(f"✅ Sticker /{cmd[3:]} ke liye save ho gaya!")
+    await update.message.reply_text(small_caps_html(f"✅ Sticker /{cmd[3:]} ke liye save ho gaya!"))
 
 async def remove_sticker(update,ctx):
-    if update.effective_user.id not in OWNER_IDS: return await update.message.reply_text("⛔ Owner only.")
+    if update.effective_user.id not in OWNER_IDS: return await update.message.reply_text(small_caps_html("⛔ Owner only."))
     cmd=update.message.text.split()[0].lstrip("/").split("@")[0].lower(); action=cmd[6:]
     with conn() as c:
         if ctx.args and ctx.args[0].lower()=="all": n=c.execute("DELETE FROM custom_stickers WHERE action_name=?",(action,)).rowcount
         elif update.message.reply_to_message and update.message.reply_to_message.sticker:
             st=update.message.reply_to_message.sticker
             n=c.execute("DELETE FROM custom_stickers WHERE action_name=? AND (file_id=? OR unique_id=?)",(action,st.file_id,st.file_unique_id)).rowcount
-        else: return await update.message.reply_text(f"Sticker par reply karo ya /{cmd} all likho.")
-    await update.message.reply_text(f"🗑️ /{action} se {n} sticker remove hue.")
+        else: return await update.message.reply_text(small_caps_html(f"Sticker par reply karo ya /{cmd} all likho."))
+    await update.message.reply_text(small_caps_html(f"🗑️ /{action} se {n} sticker remove hue."))
 
 def menu():
     return InlineKeyboardMarkup([
@@ -477,10 +489,10 @@ HOT=("🔷 <b>DISHA — FEATURE OVERVIEW</b>\n\n"
 
 async def start(update,ctx):
     r=touch(update.effective_user)
-    await update.message.reply_text(
+    await update.message.reply_text(small_caps_html(
         f"🔷 <b>ᴅɪsʜᴀ | ᴀɪ ᴄᴏᴍᴘᴀɴɪᴏɴ</b>\nᴡᴇʟᴄᴏᴍᴇ, {html.escape(update.effective_user.first_name or 'there')} .\n"
         f"━━━━━━━━━━━━━━━━━━\n💰 <b>{r['coins']}</b> ᴄᴏɪɴs  ·  ⭐ <b>ʟᴇᴠᴇʟ {r['level']}</b>  ·  🔥 <b>{r['streak']}</b>-ᴅᴀʏ sᴛʀᴇᴀᴋ\n\n"
-        "<blockquote>sᴛᴀʀᴛ ᴀ ᴄᴏɴᴠᴇʀsᴀᴛɪᴏɴ ʙʏ sᴇɴᴅɪɴɢ ᴀ ᴍᴇssᴀɢᴇ, ᴏʀ ᴄʜᴏᴏsᴇ ᴀ sᴇᴄᴛɪᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴇxᴘʟᴏʀᴇ ᴅɪsʜᴀ's ғᴇᴀᴛᴜʀᴇs.</blockquote>",parse_mode=ParseMode.HTML,reply_markup=menu())
+        "<blockquote>sᴛᴀʀᴛ ᴀ ᴄᴏɴᴠᴇʀsᴀᴛɪᴏɴ ʙʏ sᴇɴᴅɪɴɢ ᴀ ᴍᴇssᴀɢᴇ, ᴏʀ ᴄʜᴏᴏsᴇ ᴀ sᴇᴄᴛɪᴏɴ ʙᴇʟᴏᴡ ᴛᴏ ᴇxᴘʟᴏʀᴇ ᴅɪsʜᴀ's ғᴇᴀᴛᴜʀᴇs.</blockquote>"),parse_mode=ParseMode.HTML,reply_markup=menu())
     await sticker(ctx.bot,"welcome",update.effective_chat.id)
 
 async def buttons(update,ctx):
@@ -500,13 +512,13 @@ async def buttons(update,ctx):
         "profile":f"🔷 <b>YOUR PROFILE</b>\n👤 Name: <b>{html.escape(r['name'] or 'User')}</b>\n💰 Coins: <b>{r['coins']}</b>\n⭐ Level: <b>{r['level']}</b>\n✨ XP: <b>{r['xp']}</b>\n🔥 Daily streak: <b>{r['streak']}</b>\n💀 Game eliminations: <b>{r['kills']}</b>  ·  ☠️ Game losses: <b>{r['deaths']}</b>",
         "commands":"🔷 <b>COMMAND DIRECTORY</b>\n\n<b>Core:</b> /start /help /about /profile\n<b>Progress:</b> /bal /level /xp /rank /streak /leaderboard\n<b>Economy:</b> /daily /work /give /rob /protect /top\n<b>Games:</b> /kill /revive /puzzle /tictactoe\n<b>Image:</b> /waifu\n<b>Friends:</b> /addf /tag /t /ctag /delf /allf /friend /friends /setemoji\n<b>Group tools:</b> /admin /admins /report\n<b>Social actions:</b> "+" ".join("/"+x for x in ACTIONS)+"\n\n<blockquote>Some commands require a reply to another member. Use /friends for detailed friend commands.</blockquote>"}
     if d=="back":
-        return await q.edit_message_text("🔷 <b>DISHA | MAIN MENU</b>\nChoose a section to continue:",parse_mode=ParseMode.HTML,reply_markup=menu())
-    await q.edit_message_text(pages.get(d,"Disha is here!"),parse_mode=ParseMode.HTML,
+        return await q.edit_message_text(small_caps_html("🔷 <b>DISHA | MAIN MENU</b>\nChoose a section to continue:"),parse_mode=ParseMode.HTML,reply_markup=menu())
+    await q.edit_message_text(small_caps_html(pages.get(d,"Disha is here!")),parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup([[InlineKeyboardButton("BACK TO MENU",callback_data="back",style="primary")]]))
 
 async def help_cmd(update,ctx):
     touch(update.effective_user)
-    await update.message.reply_text(
+    await update.message.reply_text(small_caps_html(
         "🔷 <b>DISHA — QUICK HELP</b>\n\n"
         "<b>Start:</b> /start  ·  /about  ·  /profile\n"
         "<b>Progress:</b> /bal  ·  /level  ·  /xp  ·  /rank  ·  /streak  ·  /leaderboard\n"
@@ -517,124 +529,124 @@ async def help_cmd(update,ctx):
         "<b>Image:</b> /waifu\n"
         "<b>Actions:</b> "+" ".join("/"+x for x in ACTIONS)+"\n\n"
         "<blockquote>Private chat: send a normal message to talk with Disha. Groups: mention Disha or reply to her message.</blockquote>\n"
-        "Use /friends for detailed friend-management instructions.",
+        "Use /friends for detailed friend-management instructions."),
         parse_mode=ParseMode.HTML)
 
 async def about(update,ctx):
-    await update.message.reply_text(
+    await update.message.reply_text(small_caps_html(
         "🔷 <b>ABOUT DISHA</b>\n\n"
         "Disha is an AI-powered Telegram companion featuring natural chat, social actions, custom stickers, friend tags, virtual coins, progress tracking, games, puzzles and group utilities.\n\n"
-        "<blockquote>Tip: Open /start to explore the feature menu, or use /help for the command list.</blockquote>",
+        "<blockquote>Tip: Open /start to explore the feature menu, or use /help for the command list.</blockquote>"),
         parse_mode="HTML")
 
 async def profile(update,ctx):
     r=touch(update.effective_user)
-    await update.message.reply_text(f"👤 <b>{html.escape(r['name'] or 'User')}</b>\n💰 {r['coins']}\n⭐ Level {r['level']}\n✨ XP {r['xp']}\n🔥 Streak {r['streak']}\n💀 Game eliminations {r['kills']} · ☠️ {r['deaths']}",parse_mode="HTML")
+    await update.message.reply_text(small_caps_html(f"👤 <b>{html.escape(r['name'] or 'User')}</b>\n💰 {r['coins']}\n⭐ Level {r['level']}\n✨ XP {r['xp']}\n🔥 Streak {r['streak']}\n💀 Game eliminations {r['kills']} · ☠️ {r['deaths']}"),parse_mode="HTML")
 
 async def bal(update,ctx):
-    r=touch(update.effective_user); await update.message.reply_text(f"💰 You have <b>{r['coins']}</b> coins.",parse_mode="HTML")
+    r=touch(update.effective_user); await update.message.reply_text(small_caps_html(f"💰 You have <b>{r['coins']}</b> coins."),parse_mode="HTML")
 
 async def level_cmd(update,ctx):
     r=touch(update.effective_user); need=500+(r["level"]-1)*250
-    await update.message.reply_text(f"⭐ Level <b>{r['level']}</b> · ✨ XP <b>{r['xp']}/{need}</b>",parse_mode="HTML")
+    await update.message.reply_text(small_caps_html(f"⭐ Level <b>{r['level']}</b> · ✨ XP <b>{r['xp']}/{need}</b>"),parse_mode="HTML")
 
 async def streak_cmd(update,ctx):
-    r=touch(update.effective_user); await update.message.reply_text(f"🔥 Your streak: <b>{r['streak']}</b> day(s)",parse_mode="HTML")
+    r=touch(update.effective_user); await update.message.reply_text(small_caps_html(f"🔥 Your streak: <b>{r['streak']}</b> day(s)"),parse_mode="HTML")
 
 async def rank_cmd(update,ctx):
     r=touch(update.effective_user)
     with conn() as c: pos=c.execute("SELECT COUNT(*)+1 AS p FROM users WHERE coins>?",(r["coins"],)).fetchone()["p"]
-    await update.message.reply_text(f"🏅 Your coin rank: <b>#{pos}</b>",parse_mode="HTML")
+    await update.message.reply_text(small_caps_html(f"🏅 Your coin rank: <b>#{pos}</b>"),parse_mode="HTML")
 
 async def leaderboard(update,ctx):
     touch(update.effective_user)
     with conn() as c: rows=c.execute("SELECT name,level,xp FROM users ORDER BY level DESC,xp DESC LIMIT 10").fetchall()
-    await update.message.reply_text("🏆 TOP LEVELS\n\n"+"\n".join(f"{i}. {html.escape(r['name'] or 'User')} — Lv {r['level']} ({r['xp']} XP)" for i,r in enumerate(rows,1)))
+    await update.message.reply_text(small_caps_html("🏆 TOP LEVELS\n\n"+"\n".join(f"{i}. {html.escape(r['name'] or 'User')} — Lv {r['level']} ({r['xp']} XP)" for i,r in enumerate(rows,1))))
 
 async def top(update,ctx):
     touch(update.effective_user)
     with conn() as c: rows=c.execute("SELECT name,coins FROM users ORDER BY coins DESC LIMIT 10").fetchall()
-    await update.message.reply_text("🏆 TOP COINS\n\n"+"\n".join(f"{i}. {html.escape(r['name'] or 'User')} — {r['coins']} 💰" for i,r in enumerate(rows,1)))
+    await update.message.reply_text(small_caps_html("🏆 TOP COINS\n\n"+"\n".join(f"{i}. {html.escape(r['name'] or 'User')} — {r['coins']} 💰" for i,r in enumerate(rows,1))))
 
 async def daily(update,ctx):
     r=touch(update.effective_user); now=time.time()
-    if now-(r["daily_at"] or 0)<86400: return await update.message.reply_text("⏳ Daily reward 24-hour cooldown par hai.")
+    if now-(r["daily_at"] or 0)<86400: return await update.message.reply_text(small_caps_html("⏳ Daily reward 24-hour cooldown par hai."))
     n=random.randint(250,500)
     with conn() as c: c.execute("UPDATE users SET coins=coins+?,daily_at=? WHERE id=?",(n,now,r["id"]))
-    await update.message.reply_text(f"🎁 +{n} coins!"); await sticker(ctx.bot,"happy",update.effective_chat.id)
+    await update.message.reply_text(small_caps_html(f"🎁 +{n} coins!")); await sticker(ctx.bot,"happy",update.effective_chat.id)
 
 async def work(update,ctx):
     r=touch(update.effective_user); now=time.time()
-    if now-(r["work_at"] or 0)<1800: return await update.message.reply_text("⏳ Work cooldown is 30 minutes.")
+    if now-(r["work_at"] or 0)<1800: return await update.message.reply_text(small_caps_html("⏳ Work cooldown is 30 minutes."))
     n=random.randint(100,300)
     with conn() as c: c.execute("UPDATE users SET coins=coins+?,work_at=? WHERE id=?",(n,now,r["id"]))
-    await update.message.reply_text(f"💼 +{n} coins!")
+    await update.message.reply_text(small_caps_html(f"💼 +{n} coins!"))
 
 async def give(update,ctx):
     touch(update.effective_user); t=target(update)
-    if not t or not ctx.args: return await update.message.reply_text("Kisi user ke message par reply karke /give 100 likho.")
+    if not t or not ctx.args: return await update.message.reply_text(small_caps_html("Kisi user ke message par reply karke /give 100 likho."))
     try: n=int(ctx.args[0]); assert n>0
-    except Exception: return await update.message.reply_text("Usage: /give 100")
-    if t.is_bot or t.id==update.effective_user.id: return await update.message.reply_text("Khud ko ya bot ko coins nahi de sakte.")
+    except Exception: return await update.message.reply_text(small_caps_html("Usage: /give 100"))
+    if t.is_bot or t.id==update.effective_user.id: return await update.message.reply_text(small_caps_html("Khud ko ya bot ko coins nahi de sakte."))
     me,them=user(update.effective_user),user(t)
-    if me["coins"]<n: return await update.message.reply_text("❌ Not enough coins.")
+    if me["coins"]<n: return await update.message.reply_text(small_caps_html("❌ Not enough coins."))
     with conn() as c:
         c.execute("UPDATE users SET coins=coins-? WHERE id=?",(n,me["id"]))
         c.execute("UPDATE users SET coins=coins+? WHERE id=?",(n,them["id"]))
-    await update.message.reply_text(f"💸 {mention(update.effective_user)} gave <b>{n}</b> coins to {mention(t)}.",parse_mode="HTML")
+    await update.message.reply_text(small_caps_html(f"💸 {mention(update.effective_user)} gave <b>{n}</b> coins to {mention(t)}."),parse_mode="HTML")
 
 async def rob(update,ctx):
     touch(update.effective_user); t=target(update)
-    if not t or t.is_bot or t.id==update.effective_user.id: return await update.message.reply_text("Kisi doosre user ke message par reply karke /rob likho.")
+    if not t or t.is_bot or t.id==update.effective_user.id: return await update.message.reply_text(small_caps_html("Kisi doosre user ke message par reply karke /rob likho."))
     me,them=user(update.effective_user),user(t); now=time.time()
-    if not me["alive"]: return await update.message.reply_text("💀 Tum game se out ho. /revive ke liye kisi se kaho.")
-    if not them["alive"]: return await update.message.reply_text("Woh player already game se out hai.")
-    if now-(me["rob_at"] or 0)<600: return await update.message.reply_text("⏳ Rob cooldown 10 minutes hai.")
-    if (them["protection_until"] or 0)>now: return await update.message.reply_text("🛡️ Protection ne game robbery block kar di!")
+    if not me["alive"]: return await update.message.reply_text(small_caps_html("💀 Tum game se out ho. /revive ke liye kisi se kaho."))
+    if not them["alive"]: return await update.message.reply_text(small_caps_html("Woh player already game se out hai."))
+    if now-(me["rob_at"] or 0)<600: return await update.message.reply_text(small_caps_html("⏳ Rob cooldown 10 minutes hai."))
+    if (them["protection_until"] or 0)>now: return await update.message.reply_text(small_caps_html("🛡️ Protection ne game robbery block kar di!"))
     n=min(them["coins"],random.randint(50,250))
     with conn() as c:
         c.execute("UPDATE users SET coins=coins+?,rob_at=? WHERE id=?",(n,now,me["id"]))
         c.execute("UPDATE users SET coins=coins-? WHERE id=?",(n,them["id"]))
-    await update.message.reply_text(f"💰 {mention(update.effective_user)} won {n} game coins from {mention(t)}!",parse_mode="HTML")
+    await update.message.reply_text(small_caps_html(f"💰 {mention(update.effective_user)} won {n} game coins from {mention(t)}!"),parse_mode="HTML")
     await sticker(ctx.bot,"troll",update.effective_chat.id)
 
 async def kill(update,ctx):
     touch(update.effective_user); t=target(update)
-    if not t or t.is_bot or t.id==update.effective_user.id: return await update.message.reply_text("Kisi doosre user ke message par reply karke /kill likho (fictional game).")
+    if not t or t.is_bot or t.id==update.effective_user.id: return await update.message.reply_text(small_caps_html("Kisi doosre user ke message par reply karke /kill likho (fictional game)."))
     me,them=user(update.effective_user),user(t)
-    if not me["alive"]: return await update.message.reply_text("💀 Tum game se out ho.")
-    if not them["alive"]: return await update.message.reply_text("Player already game se out hai.")
-    if (them["protection_until"] or 0)>time.time(): return await update.message.reply_text("🛡️ Protection ne game move block kar di.")
+    if not me["alive"]: return await update.message.reply_text(small_caps_html("💀 Tum game se out ho."))
+    if not them["alive"]: return await update.message.reply_text(small_caps_html("Player already game se out hai."))
+    if (them["protection_until"] or 0)>time.time(): return await update.message.reply_text(small_caps_html("🛡️ Protection ne game move block kar di."))
     with conn() as c:
         c.execute("UPDATE users SET alive=0,deaths=deaths+1 WHERE id=?",(t.id,))
         c.execute("UPDATE users SET kills=kills+1 WHERE id=?",(me["id"],))
-    await update.message.reply_text(f"🎮 {mention(update.effective_user)} eliminated {mention(t)} in the game!",parse_mode="HTML")
+    await update.message.reply_text(small_caps_html(f"🎮 {mention(update.effective_user)} eliminated {mention(t)} in the game!"),parse_mode="HTML")
     await sticker(ctx.bot,"slap",update.effective_chat.id)
 
 async def revive(update,ctx):
     touch(update.effective_user); t=target(update)
-    if not t or t.is_bot: return await update.message.reply_text("Kisi eliminated player ke message par reply karke /revive likho.")
+    if not t or t.is_bot: return await update.message.reply_text(small_caps_html("Kisi eliminated player ke message par reply karke /revive likho."))
     me,them=user(update.effective_user),user(t)
-    if them["alive"]: return await update.message.reply_text("Woh player already active hai.")
-    if me["coins"]<300: return await update.message.reply_text("❌ Revive ke liye 300 coins chahiye.")
+    if them["alive"]: return await update.message.reply_text(small_caps_html("Woh player already active hai."))
+    if me["coins"]<300: return await update.message.reply_text(small_caps_html("❌ Revive ke liye 300 coins chahiye."))
     with conn() as c:
         c.execute("UPDATE users SET coins=coins-300 WHERE id=?",(me["id"],))
         c.execute("UPDATE users SET alive=1 WHERE id=?",(t.id,))
-    await update.message.reply_text(f"✨ {mention(update.effective_user)} revived {mention(t)}!",parse_mode="HTML")
+    await update.message.reply_text(small_caps_html(f"✨ {mention(update.effective_user)} revived {mention(t)}!"),parse_mode="HTML")
     await sticker(ctx.bot,"welcome",update.effective_chat.id)
 
 async def protect(update,ctx):
     r=touch(update.effective_user)
     try: hours=int(ctx.args[0]) if ctx.args else 1
     except ValueError: hours=0
-    if hours not in (1,24,48): return await update.message.reply_text("Usage: /protect 1, /protect 24 or /protect 48")
-    if r["coins"]<400: return await update.message.reply_text("❌ Protection costs 400 coins.")
+    if hours not in (1,24,48): return await update.message.reply_text(small_caps_html("Usage: /protect 1, /protect 24 or /protect 48"))
+    if r["coins"]<400: return await update.message.reply_text(small_caps_html("❌ Protection costs 400 coins."))
     with conn() as c: c.execute("UPDATE users SET coins=coins-400,protection_until=? WHERE id=?",(time.time()+hours*3600,r["id"]))
-    await update.message.reply_text(f"🛡️ Game protection active for {hours} hour(s).")
+    await update.message.reply_text(small_caps_html(f"🛡️ Game protection active for {hours} hour(s)."))
 
 async def puzzle(update,ctx):
     touch(update.effective_user); q,a=random.choice(PUZZLES); ctx.user_data["puzzle_answer"]=a
-    await update.message.reply_text(f"🧩 <b>Puzzle:</b>\n{html.escape(q)}\n\nAnswer bhejo!",parse_mode="HTML")
+    await update.message.reply_text(small_caps_html(f"🧩 <b>Puzzle:</b>\n{html.escape(q)}\n\nAnswer bhejo!"),parse_mode="HTML")
 
 WINS=[(0,1,2),(3,4,5),(6,7,8),(0,3,6),(1,4,7),(2,5,8),(0,4,8),(2,4,6)]
 def ttt_kb(b):
@@ -642,9 +654,9 @@ def ttt_kb(b):
 
 async def tictactoe(update,ctx):
     touch(update.effective_user); t=target(update); me=update.effective_user
-    if not t or t.is_bot or t.id==me.id: return await update.message.reply_text("Kisi doosre user ke message par reply karke /tictactoe likho.")
+    if not t or t.is_bot or t.id==me.id: return await update.message.reply_text(small_caps_html("Kisi doosre user ke message par reply karke /tictactoe likho."))
     st={"b":[" "]*9,"p":[me,t],"turn":0}
-    msg=await update.message.reply_text(f"🎮 Tic-Tac-Toe\n❌ {mention(me)} vs ⭕ {mention(t)}\n\nTurn: {mention(me)}",parse_mode="HTML",reply_markup=ttt_kb(st["b"]))
+    msg=await update.message.reply_text(small_caps_html(f"🎮 Tic-Tac-Toe\n❌ {mention(me)} vs ⭕ {mention(t)}\n\nTurn: {mention(me)}"),parse_mode="HTML",reply_markup=ttt_kb(st["b"]))
     GAMES[(msg.chat_id,msg.message_id)]=st
 
 async def ttt_move(update,ctx):
@@ -657,27 +669,27 @@ async def ttt_move(update,ctx):
     await q.answer(); st["b"][i]="❌" if st["turn"]==0 else "⭕"
     head=f"🎮 Tic-Tac-Toe\n❌ {mention(st['p'][0])} vs ⭕ {mention(st['p'][1])}\n\n"
     if any(st["b"][a]==st["b"][b]==st["b"][c]!=" " for a,b,c in WINS):
-        GAMES.pop(key,None); return await q.edit_message_text(head+f"🏆 {mention(cur)} jeet gaya!",parse_mode="HTML",reply_markup=ttt_kb(st["b"]))
+        GAMES.pop(key,None); return await q.edit_message_text(small_caps_html(head+f"🏆 {mention(cur)} jeet gaya!"),parse_mode="HTML",reply_markup=ttt_kb(st["b"]))
     if " " not in st["b"]:
-        GAMES.pop(key,None); return await q.edit_message_text(head+"🤝 Draw!",parse_mode="HTML",reply_markup=ttt_kb(st["b"]))
+        GAMES.pop(key,None); return await q.edit_message_text(small_caps_html(head+"🤝 Draw!"),parse_mode="HTML",reply_markup=ttt_kb(st["b"]))
     st["turn"]^=1
-    await q.edit_message_text(head+f"Turn: {mention(st['p'][st['turn']])}",parse_mode="HTML",reply_markup=ttt_kb(st["b"]))
+    await q.edit_message_text(small_caps_html(head+f"Turn: {mention(st['p'][st['turn']])}"),parse_mode="HTML",reply_markup=ttt_kb(st["b"]))
 
 async def action(update,ctx):
     touch(update.effective_user); cmd=update.message.text.split()[0].lstrip("/").split("@")[0].lower()
     me,them,rid=action_mentions(update,ctx); text=ACTION_TARGET[cmd].format(me=me,them=them) if them else ACTIONS[cmd]
-    await ctx.bot.send_message(update.effective_chat.id,text,parse_mode="HTML",reply_to_message_id=rid)
+    await ctx.bot.send_message(small_caps_html(update.effective_chat.id),text,parse_mode="HTML",reply_to_message_id=rid)
     await sticker(ctx.bot,cmd,update.effective_chat.id,rid)
 
 async def broadcast(update,ctx):
-    if update.effective_user.id not in OWNER_IDS: return await update.message.reply_text("⛔ Owner only.")
-    if not ctx.args: return await update.message.reply_text("Usage: /broadcast your message")
+    if update.effective_user.id not in OWNER_IDS: return await update.message.reply_text(small_caps_html("⛔ Owner only."))
+    if not ctx.args: return await update.message.reply_text(small_caps_html("Usage: /broadcast your message"))
     with conn() as c: ids=c.execute("SELECT id FROM users").fetchall()
     sent=0
     for row in ids:
         try: await ctx.bot.send_message(row["id"]," ".join(ctx.args)); sent+=1; await asyncio.sleep(.04)
         except Exception: pass
-    await update.message.reply_text(f"📢 Broadcast sent to {sent} users.")
+    await update.message.reply_text(small_caps_html(f"📢 Broadcast sent to {sent} users."))
 
 async def ban_one(update,ctx):
     msg=update.effective_message
@@ -685,29 +697,29 @@ async def ban_one(update,ctx):
         return
     # Do not treat a reply to Disha's own warning message as a request to moderate Disha.
     if not ctx.args and replied_user(update) and replied_user(update).id == ctx.bot.id:
-        return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\nReply to the actual member's message or provide their @username / Telegram user ID.",parse_mode="HTML")
+        return await msg.reply_text(small_caps_html("⚠️ <b>TARGET REQUIRED</b>\nReply to the actual member's message or provide their @username / Telegram user ID."),parse_mode="HTML")
     user_obj,error=await resolve_moderation_target(update,ctx,ctx.args)
     if error:
-        return await msg.reply_text("⚠️ <b>BAN NOT COMPLETED</b>\n"+html.escape(error),parse_mode="HTML")
+        return await msg.reply_text(small_caps_html("⚠️ <b>BAN NOT COMPLETED</b>\n"+html.escape(error)),parse_mode="HTML")
     if not user_obj:
-        return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\nReply to the member or provide a valid Telegram user ID/mention.",parse_mode="HTML")
+        return await msg.reply_text(small_caps_html("⚠️ <b>TARGET REQUIRED</b>\nReply to the member or provide a valid Telegram user ID/mention."),parse_mode="HTML")
     if is_protected_moderation_target(user_obj.id,ctx.bot.id):
-        return await msg.reply_text(protected_moderation_reply("ban"))
+        return await msg.reply_text(small_caps_html(protected_moderation_reply("ban")))
     reason_line=moderation_reason_line(moderation_reason(update,ctx,"ban"))
     if user_obj.id==update.effective_user.id:
-        return await msg.reply_text("⛔ <b>ACTION DENIED</b>\nYou cannot ban yourself.")
+        return await msg.reply_text(small_caps_html("⛔ <b>ACTION DENIED</b>\nYou cannot ban yourself."))
     try:
         member=await ctx.bot.get_chat_member(update.effective_chat.id,user_obj.id)
         if member.status in ("administrator","creator"):
-            return await msg.reply_text("⛔ <b>ADMIN TARGET</b>\nDemote this member before banning.",parse_mode="HTML")
+            return await msg.reply_text(small_caps_html("⛔ <b>ADMIN TARGET</b>\nDemote this member before banning."),parse_mode="HTML")
         await ctx.bot.ban_chat_member(update.effective_chat.id,user_obj.id)
-        return await msg.reply_text(
+        return await msg.reply_text(small_caps_html(
             "🚫 <b>USER BANNED</b>\n"
             f"👤 User: {mention(user_obj)}\n"
             f"🆔 ID: <code>{user_obj.id}</code>\n"
             f"📍 Group: <b>{html.escape(update.effective_chat.title or 'this group')}</b>\n"
             f"🛡️ Action by: {mention(update.effective_user)}"
-            f"{reason_line}",
+            f"{reason_line}"),
             parse_mode="HTML")
     except Exception as exc:
         log.exception("Ban failed in chat %s for user %s",update.effective_chat.id,user_obj.id)
@@ -718,13 +730,13 @@ async def ban_one(update,ctx):
             message="Telegram could not verify this member in the group."
         else:
             message="Telegram rejected the ban request."
-        return await msg.reply_text("❌ <b>BAN FAILED</b>\n"+html.escape(message),parse_mode="HTML")
+        return await msg.reply_text(small_caps_html("❌ <b>BAN FAILED</b>\n"+html.escape(message)),parse_mode="HTML")
 
 async def banall(update,ctx):
     if update.effective_user.id not in OWNER_IDS or update.effective_chat.type not in ("group","supergroup"): return
     kb=InlineKeyboardMarkup([[InlineKeyboardButton("CONFIRM",callback_data="banall:yes",style="danger"),
                              InlineKeyboardButton("CANCEL",callback_data="banall:no",style="primary")]])
-    await update.message.reply_text("This will ban every tracked non-admin member of this group. Confirm only if you really intend this.",reply_markup=kb)
+    await update.message.reply_text(small_caps_html("This will ban every tracked non-admin member of this group. Confirm only if you really intend this."),reply_markup=kb)
 
 async def banall_confirm(update,ctx):
     q=update.callback_query
@@ -760,22 +772,22 @@ async def unban_one(update,ctx):
         return
     user_obj,error=await resolve_moderation_target(update,ctx,ctx.args)
     if error:
-        return await msg.reply_text("⚠️ "+html.escape(error))
+        return await msg.reply_text(small_caps_html("⚠️ "+html.escape(error)))
     if is_protected_moderation_target(user_obj.id,ctx.bot.id):
-        return await msg.reply_text(protected_moderation_reply("unban"))
+        return await msg.reply_text(small_caps_html(protected_moderation_reply("unban")))
     reason_line=moderation_reason_line(moderation_reason(update,ctx,"unban"))
     try:
         await ctx.bot.unban_chat_member(update.effective_chat.id,user_obj.id,only_if_banned=True)
-        return await msg.reply_text(
+        return await msg.reply_text(small_caps_html(
             "✅ <b>USER UNBANNED</b>\n"
             f"👤 User: {mention(user_obj)}\n"
             f"🆔 ID: <code>{user_obj.id}</code>\n"
             f"📍 Group: <b>{html.escape(update.effective_chat.title or 'this group')}</b>"
-            f"{reason_line}",
+            f"{reason_line}"),
             parse_mode="HTML")
     except Exception:
         log.exception("Unban failed in chat %s",update.effective_chat.id)
-        return await msg.reply_text("❌ <b>UNBAN FAILED</b>\nTelegram could not complete the request. Verify the user ID and Disha's administrator permissions.",parse_mode="HTML")
+        return await msg.reply_text(small_caps_html("❌ <b>UNBAN FAILED</b>\nTelegram could not complete the request. Verify the user ID and Disha's administrator permissions."),parse_mode="HTML")
 
 async def say(update,ctx):
     if update.effective_user.id not in OWNER_IDS or not ctx.args: return
@@ -1011,8 +1023,8 @@ async def waifu(update,ctx):
     touch(update.effective_user); msg=update.message
     found=pick_image(msg) or pick_image(msg.reply_to_message)
     target_msg=msg if pick_image(msg) else (msg.reply_to_message or msg)
-    if not found: return await msg.reply_text("Image/sticker bhejo ya us par reply karke /waifu likho.")
-    wait=await msg.reply_text("Image check kar rahi hoon... 👀")
+    if not found: return await msg.reply_text(small_caps_html("Image/sticker bhejo ya us par reply karke /waifu likho."))
+    wait=await msg.reply_text(small_caps_html("Image check kar rahi hoon... 👀"))
     try:
         f=await ctx.bot.get_file(found[0]); raw=bytes(await f.download_as_bytearray()); mime=found[1]
         try:
@@ -1025,7 +1037,7 @@ async def waifu(update,ctx):
         log.exception("Image analysis failed")
         try: await wait.delete()
         except Exception: pass
-        return await msg.reply_text("Image analysis abhi fail hua. Dobara try karo.")
+        return await msg.reply_text(small_caps_html("Image analysis abhi fail hua. Dobara try karo."))
     try: await wait.delete()
     except Exception: pass
     await ctx.bot.send_message(update.effective_chat.id,"💖 "+answer[:3500],reply_to_message_id=target_msg.message_id)
@@ -1035,11 +1047,11 @@ async def waifu(update,ctx):
 async def add_friend(update, ctx):
     msg=update.message; target_user=target(update)
     if not target_user or target_user.is_bot or target_user.id==update.effective_user.id:
-        return await msg.reply_text("Jis user ko friend banana hai, uske message par reply karke /addf tag_name likho.")
-    if not ctx.args: return await msg.reply_text("Usage: kisi user ke message par reply karke /addf jinu")
+        return await msg.reply_text(small_caps_html("Jis user ko friend banana hai, uske message par reply karke /addf tag_name likho."))
+    if not ctx.args: return await msg.reply_text(small_caps_html("Usage: kisi user ke message par reply karke /addf jinu"))
     tag=" ".join(ctx.args).strip().lower()
     if len(tag)>32 or not re.fullmatch(r"[\w-]+",tag,re.UNICODE):
-        return await msg.reply_text("Tag 1-32 characters ka simple naam hona chahiye.")
+        return await msg.reply_text(small_caps_html("Tag 1-32 characters ka simple naam hona chahiye."))
     owner=update.effective_user.id
     try:
         with conn() as c:
@@ -1048,38 +1060,38 @@ async def add_friend(update, ctx):
                 tag=excluded.tag,friend_name=excluded.friend_name,username=excluded.username""",
                 (owner,target_user.id,tag,target_user.first_name or "Friend",target_user.username or ""))
     except Exception:
-        return await msg.reply_text("Yeh tag pehle se kisi aur friend ko diya hua hai. Dusra tag try karo.")
-    await msg.reply_text(f"✅ {mention(target_user)} ko friend list mein **{html.escape(tag)}** tag ke saath add kar diya.",parse_mode="HTML")
+        return await msg.reply_text(small_caps_html("Yeh tag pehle se kisi aur friend ko diya hua hai. Dusra tag try karo."))
+    await msg.reply_text(small_caps_html(f"✅ {mention(target_user)} ko friend list mein **{html.escape(tag)}** tag ke saath add kar diya."),parse_mode="HTML")
 
 async def tag_friends(update, ctx):
-    if not ctx.args: return await update.message.reply_text("Usage: /tag jinu archi  ya  /tag all")
+    if not ctx.args: return await update.message.reply_text(small_caps_html("Usage: /tag jinu archi  ya  /tag all"))
     owner=update.effective_user.id
     with conn() as c:
         rows=c.execute("SELECT * FROM friends WHERE owner_id=? ORDER BY tag",(owner,)).fetchall()
-    if not rows: return await update.message.reply_text("Friend list khaali hai. Kisi ke message par /addf tag_name karo.")
+    if not rows: return await update.message.reply_text(small_caps_html("Friend list khaali hai. Kisi ke message par /addf tag_name karo."))
     wanted=[x.lower() for x in ctx.args]
     selected=rows if wanted==["all"] else [r for r in rows if r["tag"].lower() in wanted]
-    if not selected: return await update.message.reply_text("Diye gaye tag ka friend nahi mila.")
+    if not selected: return await update.message.reply_text(small_caps_html("Diye gaye tag ka friend nahi mila."))
     if len(selected)>10: selected=selected[:10]
     parts=[]
     for r in selected:
         nm=html.escape(r["friend_name"] or r["tag"])
         prefix=f'<tg-emoji emoji-id="{r["emoji_id"]}">⭐</tg-emoji> ' if r["emoji_id"] else ""
         parts.append(prefix+f'<a href="tg://user?id={r["friend_id"]}">{nm}</a>')
-    await update.message.reply_text("👥 "+ " ".join(parts),parse_mode="HTML")
+    await update.message.reply_text(small_caps_html("👥 "+ " ".join(parts)),parse_mode="HTML")
 
 async def change_friend_tag(update, ctx):
     t=target(update)
-    if not t or not ctx.args: return await update.message.reply_text("Friend ke message par reply karke /ctag new_tag likho.")
+    if not t or not ctx.args: return await update.message.reply_text(small_caps_html("Friend ke message par reply karke /ctag new_tag likho."))
     tag=" ".join(ctx.args).strip().lower()
-    if len(tag)>32 or not re.fullmatch(r"[\w-]+",tag,re.UNICODE): return await update.message.reply_text("Tag 1-32 characters ka simple naam hona chahiye.")
+    if len(tag)>32 or not re.fullmatch(r"[\w-]+",tag,re.UNICODE): return await update.message.reply_text(small_caps_html("Tag 1-32 characters ka simple naam hona chahiye."))
     try:
         with conn() as c:
             cur=c.execute("UPDATE friends SET tag=?,friend_name=?,username=? WHERE owner_id=? AND friend_id=?",
                 (tag,t.first_name or "Friend",t.username or "",update.effective_user.id,t.id))
-            if cur.rowcount==0: return await update.message.reply_text("Yeh user tumhari friend list mein nahi hai.")
-    except Exception: return await update.message.reply_text("Yeh tag kisi aur friend ke paas hai.")
-    await update.message.reply_text(f"✅ Friend ka tag ab **{html.escape(tag)}** hai.",parse_mode="HTML")
+            if cur.rowcount==0: return await update.message.reply_text(small_caps_html("Yeh user tumhari friend list mein nahi hai."))
+    except Exception: return await update.message.reply_text(small_caps_html("Yeh tag kisi aur friend ke paas hai."))
+    await update.message.reply_text(small_caps_html(f"✅ Friend ka tag ab **{html.escape(tag)}** hai."),parse_mode="HTML")
 
 async def delete_friend(update, ctx):
     t=target(update)
@@ -1087,21 +1099,21 @@ async def delete_friend(update, ctx):
         with conn() as c: cur=c.execute("DELETE FROM friends WHERE owner_id=? AND friend_id=?",(update.effective_user.id,t.id))
     elif ctx.args:
         with conn() as c: cur=c.execute("DELETE FROM friends WHERE owner_id=? AND tag=?",(update.effective_user.id," ".join(ctx.args).lower()))
-    else: return await update.message.reply_text("Friend ke message par reply karke /delf likho, ya /delf tag_name.")
-    await update.message.reply_text("🗑️ Friend list se remove kar diya." if cur.rowcount else "Friend nahi mila.")
+    else: return await update.message.reply_text(small_caps_html("Friend ke message par reply karke /delf likho, ya /delf tag_name."))
+    await update.message.reply_text(small_caps_html("🗑️ Friend list se remove kar diya." if cur.rowcount else "Friend nahi mila."))
 
 async def all_friends(update, ctx):
     with conn() as c: rows=c.execute("SELECT tag,friend_name,username FROM friends WHERE owner_id=? ORDER BY tag",(update.effective_user.id,)).fetchall()
-    if not rows: return await update.message.reply_text("Abhi tumhari friend list khaali hai.")
+    if not rows: return await update.message.reply_text(small_caps_html("Abhi tumhari friend list khaali hai."))
     lines=[f"• <b>{html.escape(r['tag'])}</b> — {html.escape(r['friend_name'] or 'Friend')}"+(f" (@{html.escape(r['username'])})" if r['username'] else "") for r in rows[:50]]
-    await update.message.reply_text("👥 <b>Your friends</b> ("+str(len(rows))+")\n"+"\n".join(lines),parse_mode="HTML")
+    await update.message.reply_text(small_caps_html("👥 <b>Your friends</b> ("+str(len(rows))+")\n"+"\n".join(lines)),parse_mode="HTML")
 
 async def friend_count(update, ctx):
     with conn() as c: n=c.execute("SELECT COUNT(*) AS n FROM friends WHERE owner_id=?",(update.effective_user.id,)).fetchone()["n"]
-    await update.message.reply_text(f"👥 Tumhare {n} friend(s) saved hain.")
+    await update.message.reply_text(small_caps_html(f"👥 Tumhare {n} friend(s) saved hain."))
 
 async def friends_help(update, ctx):
-    await update.message.reply_text(
+    await update.message.reply_text(small_caps_html(
         "👥 FRIEND COMMANDS\n"
         "• Reply to user: /addf tag_name — friend save\n"
         "• /tag jinu archi — selected friends tag\n"
@@ -1110,34 +1122,34 @@ async def friends_help(update, ctx):
         "• Reply + /delf or /delf tag_name — remove friend\n"
         "• /allf — list, /friend — count\n"
         "• Reply to friend + /setemoji — save a custom premium emoji from the command message"
-    )
+    ))
 
 async def set_friend_emoji(update, ctx):
     t=target(update)
-    if not t: return await update.message.reply_text("Friend ke message par reply karo, aur /setemoji ke saath ek premium custom emoji bhejo.")
+    if not t: return await update.message.reply_text(small_caps_html("Friend ke message par reply karo, aur /setemoji ke saath ek premium custom emoji bhejo."))
     entities=update.message.entities or []
     eid=next((e.custom_emoji_id for e in entities if e.type==MessageEntity.CUSTOM_EMOJI and e.custom_emoji_id),None)
-    if not eid: return await update.message.reply_text("Command ke text mein Telegram premium custom emoji add karke bhejo: /setemoji ⭐")
+    if not eid: return await update.message.reply_text(small_caps_html("Command ke text mein Telegram premium custom emoji add karke bhejo: /setemoji ⭐"))
     with conn() as c:
         cur=c.execute("UPDATE friends SET emoji_id=? WHERE owner_id=? AND friend_id=?",(eid,update.effective_user.id,t.id))
-    if not cur.rowcount: return await update.message.reply_text("Pehle is user ko /addf se friend list mein add karo.")
-    await update.message.reply_text("✅ Is friend ke tag ke saath premium emoji save ho gaya.")
+    if not cur.rowcount: return await update.message.reply_text(small_caps_html("Pehle is user ko /addf se friend list mein add karo."))
+    await update.message.reply_text(small_caps_html("✅ Is friend ke tag ke saath premium emoji save ho gaya."))
 
 async def admin_list(update, ctx):
     if update.effective_chat.type not in ("group","supergroup"):
-        return await update.message.reply_text("Yeh command group mein use karo.")
+        return await update.message.reply_text(small_caps_html("Yeh command group mein use karo."))
     try: admins=await ctx.bot.get_chat_administrators(update.effective_chat.id)
-    except Exception: return await update.message.reply_text("Unable to retrieve the administrator list.")
+    except Exception: return await update.message.reply_text(small_caps_html("Unable to retrieve the administrator list."))
     lines=[f"• {mention(a.user)}"+(" 👑" if a.status=="creator" else "") for a in admins]
-    await update.message.reply_text("🛡️ <b>Group admins</b>\n"+"\n".join(lines),parse_mode="HTML")
+    await update.message.reply_text(small_caps_html("🛡️ <b>Group admins</b>\n"+"\n".join(lines)),parse_mode="HTML")
 
 async def report_admins(update, ctx):
     msg=update.message; reported=target(update)
     if update.effective_chat.type not in ("group","supergroup"):
-        return await msg.reply_text("Report command group mein use karo.")
-    if not reported: return await msg.reply_text("Jis user ko report karna hai, uske message par reply karke /report likho.")
+        return await msg.reply_text(small_caps_html("Report command group mein use karo."))
+    if not reported: return await msg.reply_text(small_caps_html("Jis user ko report karna hai, uske message par reply karke /report likho."))
     try: admins=await ctx.bot.get_chat_administrators(update.effective_chat.id)
-    except Exception: return await msg.reply_text("Unable to retrieve the administrator list.")
+    except Exception: return await msg.reply_text(small_caps_html("Unable to retrieve the administrator list."))
     reporter=mention(update.effective_user); subject=mention(reported)
     sent=0
     for a in admins:
@@ -1148,7 +1160,7 @@ async def report_admins(update, ctx):
                 parse_mode="HTML",disable_notification=True)
             sent+=1
         except Exception: pass
-    await msg.reply_text("✅ Report admins ko privately forward kar diya." if sent else "Admins ko private message nahi pahunch saka. Unhe pehle bot ko start karna pad sakta hai.")
+    await msg.reply_text(small_caps_html("✅ Report admins ko privately forward kar diya." if sent else "Admins ko private message nahi pahunch saka. Unhe pehle bot ko start karna pad sakta hai."))
 
 
 
@@ -1166,22 +1178,22 @@ def group_state(chat_id, key, value=None, write=False):
 async def group_admin(update, ctx, require_bot_admin=False):
     chat=update.effective_chat; msg=update.effective_message
     if not chat or chat.type not in ("group","supergroup"):
-        if msg: await msg.reply_text("⛔ <b>GROUP ONLY</b>\nThis command can only be used in groups.")
+        if msg: await msg.reply_text(small_caps_html("⛔ <b>GROUP ONLY</b>\nThis command can only be used in groups."))
         return False
     try:
         is_bot_owner=update.effective_user.id in OWNER_IDS
         if not is_bot_owner:
             member=await ctx.bot.get_chat_member(chat.id,update.effective_user.id)
             if member.status not in ("administrator","creator"):
-                await msg.reply_text("⛔ <b>ACCESS DENIED</b>\nThis command is restricted to group administrators.",parse_mode="HTML")
+                await msg.reply_text(small_caps_html("⛔ <b>ACCESS DENIED</b>\nThis command is restricted to group administrators."),parse_mode="HTML")
                 return False
         if require_bot_admin:
             bot_member=await ctx.bot.get_chat_member(chat.id,ctx.bot.id)
             if bot_member.status!="administrator":
-                await msg.reply_text("⛔ <b>BOT PERMISSION REQUIRED</b>\nDisha must be a group administrator.",parse_mode="HTML")
+                await msg.reply_text(small_caps_html("⛔ <b>BOT PERMISSION REQUIRED</b>\nDisha must be a group administrator."),parse_mode="HTML")
                 return False
     except Exception:
-        await msg.reply_text("⚠️ <b>PERMISSION CHECK FAILED</b>\nTelegram could not verify permissions.",parse_mode="HTML")
+        await msg.reply_text(small_caps_html("⚠️ <b>PERMISSION CHECK FAILED</b>\nTelegram could not verify permissions."),parse_mode="HTML")
         return False
     return True
 
@@ -1231,76 +1243,76 @@ async def group_tools(update,ctx):
         if not await group_admin(update,ctx,require_bot_admin=cmd in {"kick","ban","unban","mute","unmute","promote","demote","pin","unpin","purge","approve","unapprove"}):
             return
     if cmd in {"ban","mute","unmute","warn","promote","demote"} and not target_user:
-        return await msg.reply_text(
+        return await msg.reply_text(small_caps_html(
             "⚠️ <b>TARGET REQUIRED</b>\n"
-            "Reply to the target member's message and run this command again.",
+            "Reply to the target member's message and run this command again."),
             parse_mode="HTML")
     if cmd=="kick":
         # A bare /kick replying to Disha's own message is not a request to kick Disha.
         # Require an explicit target in that case; owner targets still trigger protection.
         replied = replied_user(update)
         if not args and (not replied or replied.id == ctx.bot.id):
-            return await msg.reply_text(
+            return await msg.reply_text(small_caps_html(
                 "⚠️ <b>TARGET REQUIRED</b>\n"
-                "Reply to the member's message, or provide their @username / Telegram user ID.",
+                "Reply to the member's message, or provide their @username / Telegram user ID."),
                 parse_mode="HTML")
         user_obj,error=await resolve_moderation_target(update,ctx,args)
         if error:
-            return await msg.reply_text("⚠️ <b>KICK NOT COMPLETED</b>\n"+html.escape(error),parse_mode="HTML")
+            return await msg.reply_text(small_caps_html("⚠️ <b>KICK NOT COMPLETED</b>\n"+html.escape(error)),parse_mode="HTML")
         if not user_obj:
-            return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\nReply to the member or provide a valid Telegram user ID/mention.",parse_mode="HTML")
+            return await msg.reply_text(small_caps_html("⚠️ <b>TARGET REQUIRED</b>\nReply to the member or provide a valid Telegram user ID/mention."),parse_mode="HTML")
         if is_protected_moderation_target(user_obj.id,ctx.bot.id):
-            return await msg.reply_text(protected_moderation_reply("kick"))
+            return await msg.reply_text(small_caps_html(protected_moderation_reply("kick")))
         if user_obj.id==update.effective_user.id:
-            return await msg.reply_text("⛔ <b>ACTION DENIED</b>\nYou cannot kick yourself.",parse_mode="HTML")
+            return await msg.reply_text(small_caps_html("⛔ <b>ACTION DENIED</b>\nYou cannot kick yourself."),parse_mode="HTML")
         try:
             member=await ctx.bot.get_chat_member(chat.id,user_obj.id)
             if member.status in ("administrator","creator"):
-                return await msg.reply_text("⛔ <b>ADMIN TARGET</b>\nDemote this member before kicking.",parse_mode="HTML")
+                return await msg.reply_text(small_caps_html("⛔ <b>ADMIN TARGET</b>\nDemote this member before kicking."),parse_mode="HTML")
             await ctx.bot.ban_chat_member(chat.id,user_obj.id)
             await ctx.bot.unban_chat_member(chat.id,user_obj.id,only_if_banned=True)
-            return await msg.reply_text(
+            return await msg.reply_text(small_caps_html(
                 "👢 <b>USER KICKED</b>\n"
                 f"👤 <b>Member:</b> {mention(user_obj)}\n"
                 f"🆔 <b>User ID:</b> <code>{user_obj.id}</code>\n"
                 f"📍 <b>Group:</b> {html.escape(chat.title or 'this group')}\n"
                 f"🛡️ <b>Action by:</b> {mention(update.effective_user)}"
-                f"{reason_line}",
+                f"{reason_line}"),
                 parse_mode="HTML")
         except Exception:
             log.exception("Kick failed in chat %s for user %s",chat.id,user_obj.id)
-            return await msg.reply_text(
+            return await msg.reply_text(small_caps_html(
                 "❌ <b>KICK FAILED</b>\n"
-                "Telegram could not complete the request. Verify Disha's administrator status, ban permission, and the target member's status.",
+                "Telegram could not complete the request. Verify Disha's administrator status, ban permission, and the target member's status."),
                 parse_mode="HTML")
     if cmd=="ban":
         if is_protected_moderation_target(target_user.id,ctx.bot.id):
-            return await msg.reply_text(protected_moderation_reply("ban"))
+            return await msg.reply_text(small_caps_html(protected_moderation_reply("ban")))
         await ctx.bot.ban_chat_member(chat.id,target_user.id)
-        return await msg.reply_text(
+        return await msg.reply_text(small_caps_html(
             "🚫 <b>USER BANNED</b>\n"
             f"👤 <b>Member:</b> {mention(target_user)}\n"
             f"🆔 <b>User ID:</b> <code>{target_user.id}</code>\n"
             f"📍 <b>Group:</b> {html.escape(chat.title or 'Group')}\n"
             f"🛡️ <b>Action by:</b> {mention(update.effective_user)}"
-            f"{reason_line}",
+            f"{reason_line}"),
             parse_mode="HTML")
     if cmd=="unban":
         uid=int(args[0]) if args and args[0].isdigit() else (target_user.id if target_user else None)
-        if not uid: return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\nReply to the member's message or provide a valid Telegram user ID.",parse_mode="HTML")
+        if not uid: return await msg.reply_text(small_caps_html("⚠️ <b>TARGET REQUIRED</b>\nReply to the member's message or provide a valid Telegram user ID."),parse_mode="HTML")
         if is_protected_moderation_target(uid,ctx.bot.id):
-            return await msg.reply_text(protected_moderation_reply("unban"))
+            return await msg.reply_text(small_caps_html(protected_moderation_reply("unban")))
         await ctx.bot.unban_chat_member(chat.id,uid,only_if_banned=True)
-        return await msg.reply_text(
+        return await msg.reply_text(small_caps_html(
             "✅ <b>USER UNBANNED</b>\n"
             f"🆔 <b>User ID:</b> <code>{uid}</code>\n"
             f"📍 <b>Group:</b> {html.escape(chat.title or 'Group')}\n"
             f"🛡️ <b>Action by:</b> {mention(update.effective_user)}"
-            f"{reason_line}",
+            f"{reason_line}"),
             parse_mode="HTML")
     if cmd in {"mute","unmute"}:
         if is_protected_moderation_target(target_user.id,ctx.bot.id):
-            return await msg.reply_text(protected_moderation_reply(cmd))
+            return await msg.reply_text(small_caps_html(protected_moderation_reply(cmd)))
         if cmd=="mute":
             seconds=3600
             if args:
@@ -1308,69 +1320,69 @@ async def group_tools(update,ctx):
                 except ValueError: pass
             from datetime import timedelta, timezone
             await ctx.bot.restrict_chat_member(chat.id,target_user.id,permissions=__import__("telegram").ChatPermissions(can_send_messages=False),until_date=datetime.now(timezone.utc)+timedelta(seconds=seconds))
-            return await msg.reply_text(
+            return await msg.reply_text(small_caps_html(
                 "🔇 <b>USER MUTED</b>\n"
                 f"👤 <b>Member:</b> {mention(target_user)}\n"
                 f"⏱️ <b>Duration:</b> {seconds//60} minute(s)\n"
                 f"🛡️ <b>Action by:</b> {mention(update.effective_user)}"
-                f"{reason_line}",
+                f"{reason_line}"),
                 parse_mode="HTML")
         from telegram import ChatPermissions
         await ctx.bot.restrict_chat_member(chat.id,target_user.id,permissions=ChatPermissions(can_send_messages=True,can_send_audios=True,can_send_documents=True,can_send_photos=True,can_send_videos=True,can_send_video_notes=True,can_send_voice_notes=True,can_send_polls=True,can_send_other_messages=True,can_add_web_page_previews=True))
-        return await msg.reply_text(
+        return await msg.reply_text(small_caps_html(
             "🔊 <b>USER UNMUTED</b>\n"
             f"👤 <b>Member:</b> {mention(target_user)}\n"
             f"🛡️ <b>Action by:</b> {mention(update.effective_user)}"
-            f"{reason_line}",
+            f"{reason_line}"),
             parse_mode="HTML")
     if cmd=="warn":
         if is_protected_moderation_target(target_user.id,ctx.bot.id):
-            return await msg.reply_text(protected_moderation_reply("warn"))
+            return await msg.reply_text(small_caps_html(protected_moderation_reply("warn")))
         with conn() as c:
             c.execute("INSERT INTO group_warns(chat_id,user_id,warnings) VALUES(?,?,1) ON CONFLICT(chat_id,user_id) DO UPDATE SET warnings=warnings+1",(chat.id,target_user.id))
             n=c.execute("SELECT warnings FROM group_warns WHERE chat_id=? AND user_id=?",(chat.id,target_user.id)).fetchone()["warnings"]
-        return await msg.reply_text(
+        return await msg.reply_text(small_caps_html(
             "⚠️ <b>WARNING ISSUED</b>\n"
             f"👤 <b>Member:</b> {mention(target_user)}\n"
             f"📊 <b>Total warnings:</b> {n}\n"
             f"🛡️ <b>Issued by:</b> {mention(update.effective_user)}"
-            f"{reason_line}",
+            f"{reason_line}"),
             parse_mode="HTML")
     if cmd in {"warnings","resetwarns"}:
         t=target_user
-        if not t: return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\nReply to the member's message and run this command again.",parse_mode="HTML")
+        if not t: return await msg.reply_text(small_caps_html("⚠️ <b>TARGET REQUIRED</b>\nReply to the member's message and run this command again."),parse_mode="HTML")
         with conn() as c:
             if cmd=="resetwarns":
                 c.execute("DELETE FROM group_warns WHERE chat_id=? AND user_id=?",(chat.id,t.id))
-                return await msg.reply_text("✅ <b>WARNINGS RESET</b>\nThe member's warning count has been cleared.",parse_mode="HTML")
+                return await msg.reply_text(small_caps_html("✅ <b>WARNINGS RESET</b>\nThe member's warning count has been cleared."),parse_mode="HTML")
             r=c.execute("SELECT warnings FROM group_warns WHERE chat_id=? AND user_id=?",(chat.id,t.id)).fetchone()
-        return await msg.reply_text(
+        return await msg.reply_text(small_caps_html(
             "📋 <b>WARNING SUMMARY</b>\n"
             f"👤 <b>Member:</b> {mention(t)}\n"
-            f"📊 <b>Total warnings:</b> {r['warnings'] if r else 0}",
+            f"📊 <b>Total warnings:</b> {r['warnings'] if r else 0}"),
             parse_mode="HTML")
     if cmd in {"promote","demote"}:
         if cmd=="promote":
             await ctx.bot.promote_chat_member(chat.id,target_user.id,can_manage_chat=True,can_delete_messages=True,can_restrict_members=True,can_invite_users=True,can_pin_messages=True)
         else:
             await ctx.bot.promote_chat_member(chat.id,target_user.id,can_manage_chat=False,can_delete_messages=False,can_restrict_members=False,can_invite_users=False,can_pin_messages=False,can_promote_members=False)
-        return await msg.reply_text(
+        return await msg.reply_text(small_caps_html(
             ("👑 <b>ADMIN RIGHTS GRANTED</b>" if cmd=="promote" else "🛡️ <b>ADMIN RIGHTS REMOVED</b>")+
             f"\n👤 <b>Member:</b> {mention(target_user)}\n"
             f"🛡️ <b>Action by:</b> {mention(update.effective_user)}"
-            f"{reason_line}",
+            f"{reason_line}"),
             parse_mode="HTML")
     if cmd=="pin":
         m=msg.reply_to_message
-        if not m: return await msg.reply_text("⚠️ <b>MESSAGE REQUIRED</b>\nReply to the message you want to pin, then run /pin.",parse_mode="HTML")
-        await ctx.bot.pin_chat_message(chat.id,m.message_id); return await msg.reply_text("📌 <b>MESSAGE PINNED</b>\nThe selected message has been pinned successfully.",parse_mode="HTML")
+        if not m: return await msg.reply_text(small_caps_html("⚠️ <b>MESSAGE REQUIRED</b>\nReply to the message you want to pin, then run /pin."),parse_mode="HTML")
+        await ctx.bot.pin_chat_message(chat.id,m.message_id); return await msg.reply_text(small_caps_html("📌 <b>MESSAGE PINNED</b>\nThe selected message has been pinned successfully."),parse_mode="HTML")
     if cmd=="unpin":
         m=msg.reply_to_message
         if m: await ctx.bot.unpin_chat_message(chat.id,m.message_id)
         else: await ctx.bot.unpin_all_chat_messages(chat.id)
-        return await msg.reply_text("📌 <b>PIN REMOVED</b>\nThe pinned message has been removed.",parse_mode="HTML")
+        return await msg.reply_text(small_caps_html("📌 <b>PIN REMOVED</b>\nThe pinned message has been removed."),parse_mode="HTML")
     if cmd=="purge":
-        if not msg.reply_to_message: return await msg.reply_text("⚠️ <b>MESSAGE RANGE REQUIRED</b>\nReply to the earliest message you want to delete, then run /purge.",parse_mode="HTML")
+        if not msg.reply_to_message: return await msg.reply_text(small_caps_html("⚠️ <b>MESSAGE RANGE REQUIRED</b>\nReply to the earliest message you want to delete, then run /purge."),parse_mode="HTML")
         start=msg.reply_to_message.message_id; end=msg.message_id
         ids=list(range(start,end+1))[-100:]
         deleted=0
@@ -1384,52 +1396,52 @@ async def group_tools(update,ctx):
         return
     if cmd=="rules":
         rules=group_state(chat.id,"rules")
-        return await msg.reply_text("📜 <b>GROUP RULES</b>\n"+html.escape(rules or "No group rules have been configured yet."),parse_mode="HTML")
+        return await msg.reply_text(small_caps_html("📜 <b>GROUP RULES</b>\n"+html.escape(rules or "No group rules have been configured yet.")),parse_mode="HTML")
     if cmd=="setrules":
-        if not args: return await msg.reply_text("Usage: /setrules Your group rules...")
-        group_state(chat.id,"rules"," ".join(args),True); return await msg.reply_text("✅ <b>GROUP RULES UPDATED</b>\nThe new rules have been saved.",parse_mode="HTML")
+        if not args: return await msg.reply_text(small_caps_html("Usage: /setrules Your group rules..."))
+        group_state(chat.id,"rules"," ".join(args),True); return await msg.reply_text(small_caps_html("✅ <b>GROUP RULES UPDATED</b>\nThe new rules have been saved."),parse_mode="HTML")
     if cmd=="filters":
-        if not args: return await msg.reply_text("Usage: /filters keyword response text")
+        if not args: return await msg.reply_text(small_caps_html("Usage: /filters keyword response text"))
         word=args[0].lower(); val=" ".join(args[1:])
-        if not val: return await msg.reply_text("Please provide the response text for this filter.")
+        if not val: return await msg.reply_text(small_caps_html("Please provide the response text for this filter."))
         import json
         data=json.loads(group_state(chat.id,"filters") or "{}"); data[word]=val
         group_state(chat.id,"filters",json.dumps(data,ensure_ascii=False),True)
-        return await msg.reply_text(f"✅ <b>FILTER CREATED</b>\nKeyword: <code>{html.escape(word)}</code>",parse_mode="HTML")
+        return await msg.reply_text(small_caps_html(f"✅ <b>FILTER CREATED</b>\nKeyword: <code>{html.escape(word)}</code>"),parse_mode="HTML")
     if cmd=="delfilters":
-        if not args: return await msg.reply_text("Usage: /delfilters keyword")
+        if not args: return await msg.reply_text(small_caps_html("Usage: /delfilters keyword"))
         import json
         data=json.loads(group_state(chat.id,"filters") or "{}"); data.pop(args[0].lower(),None)
-        group_state(chat.id,"filters",json.dumps(data,ensure_ascii=False),True); return await msg.reply_text("✅ <b>FILTER REMOVED</b>\nThe selected keyword filter has been deleted.",parse_mode="HTML")
+        group_state(chat.id,"filters",json.dumps(data,ensure_ascii=False),True); return await msg.reply_text(small_caps_html("✅ <b>FILTER REMOVED</b>\nThe selected keyword filter has been deleted."),parse_mode="HTML")
     if cmd=="filterlist":
         import json
         data=json.loads(group_state(chat.id,"filters") or "{}")
-        return await msg.reply_text("📋 Filters: "+(", ".join(data) if data else "none"))
+        return await msg.reply_text(small_caps_html("📋 Filters: "+(", ".join(data) if data else "none")))
     if cmd in {"addblacklist","removeblock","blocklist"}:
         import json
         data=json.loads(group_state(chat.id,"blacklist") or "[]")
         if cmd=="addblacklist":
-            if not args: return await msg.reply_text("Usage: /addblacklist word or phrase")
+            if not args: return await msg.reply_text(small_caps_html("Usage: /addblacklist word or phrase"))
             word=" ".join(args).lower()
             if word not in data: data.append(word)
         elif cmd=="removeblock":
-            if not args: return await msg.reply_text("Usage: /removeblock word or phrase")
+            if not args: return await msg.reply_text(small_caps_html("Usage: /removeblock word or phrase"))
             word=" ".join(args).lower(); data=[x for x in data if x!=word]
         group_state(chat.id,"blacklist",json.dumps(data,ensure_ascii=False),True)
-        return await msg.reply_text("🚫 <b>GROUP BLACKLIST</b>\n"+html.escape(", ".join(data) if data else "The blacklist is empty."),parse_mode="HTML")
+        return await msg.reply_text(small_caps_html("🚫 <b>GROUP BLACKLIST</b>\n"+html.escape(", ".join(data) if data else "The blacklist is empty.")),parse_mode="HTML")
     if cmd in {"approve","unapprove"}:
         uid=int(args[0]) if args and args[0].isdigit() else (target_user.id if target_user else None)
-        if not uid: return await msg.reply_text("Usage: /approve user_id or /unapprove user_id")
+        if not uid: return await msg.reply_text(small_caps_html("Usage: /approve user_id or /unapprove user_id"))
         if cmd=="approve": await ctx.bot.approve_chat_join_request(chat.id,uid)
         else: await ctx.bot.decline_chat_join_request(chat.id,uid)
-        return await msg.reply_text("✅ <b>JOIN REQUEST PROCESSED</b>\nThe request action was submitted successfully.",parse_mode="HTML")
+        return await msg.reply_text(small_caps_html("✅ <b>JOIN REQUEST PROCESSED</b>\nThe request action was submitted successfully."),parse_mode="HTML")
     if cmd=="setwelcome":
-        if not args: return await msg.reply_text("Usage: /setwelcome Your welcome message")
-        group_state(chat.id,"welcome"," ".join(args),True); return await msg.reply_text("✅ <b>WELCOME MESSAGE UPDATED</b>\nThe new welcome message is now active.",parse_mode="HTML")
+        if not args: return await msg.reply_text(small_caps_html("Usage: /setwelcome Your welcome message"))
+        group_state(chat.id,"welcome"," ".join(args),True); return await msg.reply_text(small_caps_html("✅ <b>WELCOME MESSAGE UPDATED</b>\nThe new welcome message is now active."),parse_mode="HTML")
     if cmd=="delsetwelcome":
-        group_state(chat.id,"welcome","",True); return await msg.reply_text("✅ <b>WELCOME MESSAGE REMOVED</b>\nThe custom welcome message has been disabled.",parse_mode="HTML")
+        group_state(chat.id,"welcome","",True); return await msg.reply_text(small_caps_html("✅ <b>WELCOME MESSAGE REMOVED</b>\nThe custom welcome message has been disabled."),parse_mode="HTML")
     if cmd=="endgame":
-        GAMES.pop(chat.id,None); return await msg.reply_text("🎮 <b>GAME ENDED</b>\nThe active group game has been closed.",parse_mode="HTML")
+        GAMES.pop(chat.id,None); return await msg.reply_text(small_caps_html("🎮 <b>GAME ENDED</b>\nThe active group game has been closed."),parse_mode="HTML")
     if cmd in {"truth","dare","tr"}:
         lang=(args[0].lower() if args else "en")
         truths={"en":["What is one skill you'd like to learn?","What is a small thing that makes your day better?","Which fictional world would you visit?"],
@@ -1438,24 +1450,24 @@ async def group_tools(update,ctx):
                "hi":["Apne din ko sirf 3 emoji mein batao.","Group ke kisi member ki ek achhi baat bolo.","Ek funny tongue-twister likho."]}
         pool=(truths if cmd=="truth" else dares)
         key="hi" if lang in {"hi","hindi"} else "en"
-        return await msg.reply_text(("🤔 TRUTH: " if cmd=="truth" else "🎯 DARE: ")+random.choice(pool[key]))
+        return await msg.reply_text(small_caps_html(("🤔 TRUTH: " if cmd=="truth" else "🎯 DARE: ")+random.choice(pool[key])))
     if cmd=="google":
-        if not args: return await msg.reply_text("Usage: /google your question")
+        if not args: return await msg.reply_text(small_caps_html("Usage: /google your question"))
         from urllib.parse import quote_plus
-        return await msg.reply_text("🔎 Search: https://www.google.com/search?q="+quote_plus(" ".join(args)),disable_web_page_preview=True)
+        return await msg.reply_text(small_caps_html("🔎 Search: https://www.google.com/search?q="+quote_plus(" ".join(args))),disable_web_page_preview=True)
     if cmd=="game":
-        return await msg.reply_text("🎮 Quick game: /truth or /dare. /join to join the current group game.")
+        return await msg.reply_text(small_caps_html("🎮 Quick game: /truth or /dare. /join to join the current group game."))
     if cmd=="join":
-        return await msg.reply_text("🙌 You're in! Start a game with /game.")
+        return await msg.reply_text(small_caps_html("🙌 You're in! Start a game with /game."))
     if cmd=="ping":
-        return await msg.reply_text("🏓 Pong!")
+        return await msg.reply_text(small_caps_html("🏓 Pong!"))
     if cmd=="developer":
-        return await msg.reply_text("👨‍💻 Developer: @II_YUTA_II")
+        return await msg.reply_text(small_caps_html("👨‍💻 Developer: @II_YUTA_II"))
     if cmd=="info":
-        return await msg.reply_text("✨ Disha AI — group assistant, moderation and fun commands.")
+        return await msg.reply_text(small_caps_html("✨ Disha AI — group assistant, moderation and fun commands."))
     if cmd=="commands":
-        return await msg.reply_text("🛡️ ADMIN: /kick /ban /unban /mute /unmute /warn /warnings /resetwarns /promote /demote /pin /unpin /purge /setrules /rules /filters /delfilters /filterlist /addblacklist /removeblock /blocklist /approve /unapprove /setwelcome /delsetwelcome /endgame\n🎉 FUN: /truth /dare /tr hi /google /game /join\nℹ️ OTHER: /info /developer /ping")
-    return await msg.reply_text("Command abhi available nahi hai.")
+        return await msg.reply_text(small_caps_html("🛡️ ADMIN: /kick /ban /unban /mute /unmute /warn /warnings /resetwarns /promote /demote /pin /unpin /purge /setrules /rules /filters /delfilters /filterlist /addblacklist /removeblock /blocklist /approve /unapprove /setwelcome /delsetwelcome /endgame\n🎉 FUN: /truth /dare /tr hi /google /game /join\nℹ️ OTHER: /info /developer /ping"))
+    return await msg.reply_text(small_caps_html("Command abhi available nahi hai."))
 
 async def group_text_tools(update,ctx):
     msg=update.effective_message; chat=update.effective_chat
@@ -1480,7 +1492,7 @@ async def safe_group_tools(update, ctx):
         log.exception("Group command failed: %s", getattr(update.effective_message, "text", "unknown"))
         msg = update.effective_message
         if msg:
-            await msg.reply_text("❌ <b>COMMAND FAILED</b>\nTelegram could not complete this action. Check the command format and Disha's administrator permissions, then try again.",parse_mode="HTML")
+            await msg.reply_text(small_caps_html("❌ <b>COMMAND FAILED</b>\nTelegram could not complete this action. Check the command format and Disha's administrator permissions, then try again."),parse_mode="HTML")
 
 async def disha_error_handler(update, ctx):
     error = ctx.error
@@ -1488,7 +1500,7 @@ async def disha_error_handler(update, ctx):
     msg = getattr(update, "effective_message", None)
     if msg and msg.text and msg.text.startswith("/"):
         try:
-            await msg.reply_text("❌ <b>COMMAND ERROR</b>\nAn unexpected error occurred while processing this command. Please try again later.",parse_mode="HTML")
+            await msg.reply_text(small_caps_html("❌ <b>COMMAND ERROR</b>\nAn unexpected error occurred while processing this command. Please try again later."),parse_mode="HTML")
         except Exception:
             log.exception("Could not send command error notice")
 
