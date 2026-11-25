@@ -682,8 +682,8 @@ async def ban_one(update,ctx):
     user_obj,error=await resolve_moderation_target(update,ctx,ctx.args)
     if error:
         return await msg.reply_text("⚠️ <b>UNBAN NOT COMPLETED</b>\n"+html.escape(error),parse_mode="HTML")
-    if not user_obj or user_obj.is_bot:
-        return await msg.reply_text("⚠️ Bots ko is command se ban nahi kiya ja sakta.")
+    if not user_obj:
+        return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\nReply to the member or provide a valid Telegram user ID/mention.",parse_mode="HTML")
     if user_obj.id==update.effective_user.id or user_obj.id in OWNER_IDS:
         return await msg.reply_text("⛔ Is user ko ban nahi kiya ja sakta.")
     try:
@@ -1168,7 +1168,7 @@ async def group_tools(update,ctx):
     if cmd in {"kick","ban","unban","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","setrules","filters","delfilters","filterlist","addblacklist","removeblock","blocklist","approve","unapprove","setwelcome","delsetwelcome","endgame"}:
         if not await group_admin(update,ctx,require_bot_admin=cmd in {"kick","ban","unban","mute","unmute","promote","demote","pin","unpin","purge","approve","unapprove"}):
             return
-    if cmd in {"ban","mute","unmute","warn","promote","demote"} and (not target_user or target_user.is_bot):
+    if cmd in {"ban","mute","unmute","warn","promote","demote"} and not target_user:
         return await msg.reply_text(
             "⚠️ <b>TARGET REQUIRED</b>\n"
             "Reply to the target member's message and run this command again.",
@@ -1177,8 +1177,8 @@ async def group_tools(update,ctx):
         user_obj,error=await resolve_moderation_target(update,ctx,args)
         if error:
             return await msg.reply_text("⚠️ <b>KICK NOT COMPLETED</b>\n"+html.escape(error),parse_mode="HTML")
-        if not user_obj or user_obj.is_bot:
-            return await msg.reply_text("⚠️ <b>ACTION NOT ALLOWED</b>\nBot accounts cannot be removed with this command.",parse_mode="HTML")
+        if not user_obj:
+            return await msg.reply_text("⚠️ <b>TARGET REQUIRED</b>\nReply to the member or provide a valid Telegram user ID/mention.",parse_mode="HTML")
         if user_obj.id==update.effective_user.id or user_obj.id in OWNER_IDS:
             return await msg.reply_text("⛔ <b>ACTION DENIED</b>\nYou cannot kick yourself or a protected bot owner.",parse_mode="HTML")
         try:
