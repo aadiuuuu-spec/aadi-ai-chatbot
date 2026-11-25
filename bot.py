@@ -510,14 +510,14 @@ async def buttons(update,ctx):
               "<b>Private chat:</b> Send any normal message to start an AI conversation.\n"
               "<b>Group chat:</b> Mention <b>Disha</b>, mention the bot username, or reply to Disha's message.\n"
               "<b>Targeted actions:</b> Reply to a member's message and send an action such as /hug or /wow.\n"
-              "<b>Games:</b> Reply to a member and use /tictactoe.\n"
+              "<b>Games:</b> Use /tictactoe for a board game or /couple to match two random group members.\n"
               "<blockquote>Tip: Use /help for a quick command index and /friends for friend-management instructions.</blockquote>",
         "actions":"🔷 <b>SOCIAL ACTIONS</b>\nUse these commands to send a reaction or sticker:\n\n"+" ".join("/"+x for x in ACTIONS)+"\n\n<blockquote>Reply to a member's message to direct an action at that person. Some actions also support a name after the command.</blockquote>",
         "eco":"🔷 <b>VIRTUAL ECONOMY</b>\n/bal — view your coin balance\n/daily — claim a daily reward (24-hour cooldown)\n/work — earn coins (30-minute cooldown)\n/give amount — transfer coins by replying to a member\n/rob — attempt a virtual coin heist by replying to a member\n/protect — activate in-game protection\n/top — view the coin leaderboard\n\n<blockquote>All coins are in-bot points and have no cash value.</blockquote>",
         "puz":"🔷 <b>PUZZLES</b>\n/puzzle — receive a puzzle and submit your answer in the chat.\n\n<blockquote>A correct answer awards virtual coins. Use /puzzle again to request another puzzle.</blockquote>",
-        "games":"🔷 <b>GAMES</b>\n/tictactoe — reply to another member's message to start a Tic-Tac-Toe match.\n/kill, /revive, /protect and /rob — virtual game mechanics.\n\n<blockquote>These commands are fictional gameplay only; they do not cause real-world harm.</blockquote>",
+        "games":"🔷 <b>GAMES</b>\n/tictactoe — reply to another member's message to start a Tic-Tac-Toe match.\n/couple — randomly pair two group members with a playful compatibility score.\n/kill, /revive, /protect and /rob — virtual game mechanics.\n\n<blockquote>These commands are fictional gameplay only; they do not cause real-world harm.</blockquote>",
         "profile":f"🔷 <b>YOUR PROFILE</b>\n👤 Name: <b>{html.escape(r['name'] or 'User')}</b>\n💰 Coins: <b>{r['coins']}</b>\n⭐ Level: <b>{r['level']}</b>\n✨ XP: <b>{r['xp']}</b>\n🔥 Daily streak: <b>{r['streak']}</b>\n💀 Game eliminations: <b>{r['kills']}</b>  ·  ☠️ Game losses: <b>{r['deaths']}</b>",
-        "commands":"🔷 <b>COMMAND DIRECTORY</b>\n\n<b>Core:</b> /start /help /about /profile\n<b>Progress:</b> /bal /level /xp /rank /streak /leaderboard\n<b>Economy:</b> /daily /work /give /rob /protect /top\n<b>Games:</b> /kill /revive /puzzle /tictactoe\n<b>Image:</b> /waifu\n<b>Friends:</b> /addf /tag /t /ctag /delf /allf /friend /friends /setemoji\n<b>Group tools:</b> /admin /admins /report\n<b>Social actions:</b> "+" ".join("/"+x for x in ACTIONS)+"\n\n<blockquote>Some commands require a reply to another member. Use /friends for detailed friend commands.</blockquote>"}
+        "commands":"🔷 <b>COMMAND DIRECTORY</b>\n\n<b>Core:</b> /start /help /about /profile\n<b>Progress:</b> /bal /level /xp /rank /streak /leaderboard\n<b>Economy:</b> /daily /work /give /rob /protect /top\n<b>Games:</b> /kill /revive /puzzle /tictactoe /couple\n<b>Image:</b> /waifu\n<b>Friends:</b> /addf /tag /t /ctag /delf /allf /friend /friends /setemoji\n<b>Group tools:</b> /admin /admins /report\n<b>Social actions:</b> "+" ".join("/"+x for x in ACTIONS)+"\n\n<blockquote>Some commands require a reply to another member. Use /friends for detailed friend commands.</blockquote>"}
     if d=="back":
         return await q.edit_message_text(small_caps_html("🔷 <b>DISHA | MAIN MENU</b>\nChoose a section to continue:"),parse_mode=ParseMode.HTML,reply_markup=menu())
     await q.edit_message_text(small_caps_html(pages.get(d,"Disha is here!")),parse_mode=ParseMode.HTML,
@@ -530,7 +530,7 @@ async def help_cmd(update,ctx):
         "<b>Start:</b> /start  ·  /about  ·  /profile\n"
         "<b>Progress:</b> /bal  ·  /level  ·  /xp  ·  /rank  ·  /streak  ·  /leaderboard\n"
         "<b>Economy:</b> /daily  ·  /work  ·  /give  ·  /rob  ·  /protect  ·  /top\n"
-        "<b>Games:</b> /puzzle  ·  /tictactoe  ·  /kill  ·  /revive\n"
+        "<b>Games:</b> /puzzle  ·  /tictactoe  ·  /kill  ·  /revive  ·  /couple\n"
         "<b>Friends:</b> /addf  ·  /tag  ·  /t  ·  /ctag  ·  /delf  ·  /allf  ·  /friend  ·  /friends  ·  /setemoji\n"
         "<b>Group:</b> /admin  ·  /admins  ·  /report\n"
         "<b>Image:</b> /waifu\n"
