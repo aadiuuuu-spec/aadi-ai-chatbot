@@ -1397,7 +1397,7 @@ async def group_tools(update,ctx):
                 deleted+=1
             except Exception:
                 continue
-        await ctx.bot.send_message(chat.id,f"🧹 <b>PURGE COMPLETED</b>\n{deleted} message(s) were successfully deleted.",parse_mode="HTML",reply_to_message_id=msg.message_id)
+        await ctx.bot.send_message(chat.id,small_caps_html(f"🧹 <b>PURGE COMPLETED</b>\n{deleted} message(s) were successfully deleted."),parse_mode="HTML",reply_to_message_id=msg.message_id)
         return
     if cmd=="rules":
         rules=group_state(chat.id,"rules")
