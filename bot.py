@@ -940,9 +940,31 @@ async def sticker_reply(update,ctx):
 JOIN_LEAVE_BG_B64 = "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABcQERQRDhcUEhQaGBcbIjklIh8fIkYyNSk5UkhXVVFIUE5bZoNvW2F8Yk5QcptzfIeLkpSSWG2grJ+OqoOPko3/2wBDARgaGiIeIkMlJUONXlBejY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY2NjY3/wAARCABQAQADASIAAhEBAxEB/8QAGQABAQEBAQEAAAAAAAAAAAAAAQACAwG/8QAIxABAQEAAgEEAgMBAAAAAAAAAAECAxExEiEyQSJRE4GRcf/EABcBAQEBAQAAAAAAAAAAAAAAAAABAgP/xAAZEQEBAQEBAQAAAAAAAAAAAAAAARECEkH/2gAMAwEAAhEDEQA/APpaDQw6gECig1rExZ+XlV3B6O+P1duX1272zP4TuzS5dXOPTnPU/Yk6rzggdQkhQkhUkgSSBEICQhCQRC0yYI1DAYjJhEIy0c+YzGs+YM1mggVVlqsjUSz1dfl4FFVXfOprfU8SOd5bnvNnf0592eL0yJOIgQOgSAqSQqSQJJAkkBQMEJBEJDG+bPHrM1L1fv6EdYYIxvWresX3GXYsY13Pfz9txEpaz5jMaz8p/wBGKykhWQaBqAU0UUVlqhWgy1WRUCBUkhUkgSSBJIEYDBCoiIR6JqXsxddkSuGd6zy+jMvTWNb13qZt7vs3xzvd1/ixfTy3P1VXVwZ5Jda5dT38SfT0Mxplzt0xrPyjLWflBmiggBWWqyNAU0UUAiq0Ky0yKgQKklPIq6vXfS6t8R6F4XGPTzo6veqEbSSBGAiEgiEiGCLM6v8AS9Hd7++yRloxlqIhaz5jLWfMGaAQAoHLv+PjuurevqM8fJnlxNZ/z9DWfTRVvXpjGbqe2v6qq0KRRoAgUUGgVJIVvG+va+Fvk79p4YRrPmJJI0kkoUiIiCITAUQwwQwZLUZaglMaz5jLWflBmv/Z"
 
 def render_member_event_card(member, group_name, joined, custom_welcome, avatar_bytes):
-    from PIL import Image, ImageDraw, ImageFont, ImageOps
-    background=Image.open(io.BytesIO(base64.b64decode(JOIN_LEAVE_BG_B64))).convert("RGBA")
-    W,H=background.size
+    from PIL import Image, ImageDraw, ImageFont, ImageOps, ImageFilter
+    W,H=1536,512
+    try:
+        raw=base64.b64decode(JOIN_LEAVE_BG_B64,validate=True)
+        background=Image.open(io.BytesIO(raw)).convert("RGB")
+        # The supplied bow wallpaper is portrait; make a wide banner without
+        # cropping away the pattern or stretching it out of proportion.
+        tile=ImageOps.fit(background,(W//5,H),centering=(0.5,0.5))
+        canvas=ImageOps.fit(background,(W,H),centering=(0.5,0.5)).filter(ImageFilter.GaussianBlur(14))
+        for n in range(5):
+            panel=tile.transpose(Image.Transpose.FLIP_LEFT_RIGHT) if n%2 else tile
+            x=n*(W//5)
+            canvas.paste(Image.blend(canvas.crop((x,0,x+W//5,H)),panel,0.30),(x,0))
+        background=canvas.convert("RGBA")
+    except Exception:
+        # Never fall back to plain text: keep a designed pink card available
+        # even if an embedded wallpaper is damaged.
+        background=Image.new("RGBA",(W,H),(255,220,236,255))
+        d=ImageDraw.Draw(background,"RGBA")
+        for x in range(-100,W+100,190):
+            for y in range(-40,H+80,150):
+                d.ellipse((x,y,x+42,y+42),fill=(255,160,205,80))
+                d.ellipse((x+12,y-8,x+52,y+32),fill=(255,160,205,80))
+                d.line((x+20,y+34,x+6,y+65),fill=(255,160,205,120),width=5)
+                d.line((x+20,y+34,x+35,y+65),fill=(255,160,205,120),width=5)
     draw=ImageDraw.Draw(background,"RGBA")
     def font(size,bold=False):
         paths=(
@@ -953,46 +975,47 @@ def render_member_event_card(member, group_name, joined, custom_welcome, avatar_
             try: return ImageFont.truetype(path,size)
             except Exception: pass
         return ImageFont.load_default()
-    # Soft translucent details panel, keeping the supplied pink bow background visible.
-    draw.rounded_rectangle((500,48,1480,432),radius=42,fill=(255,248,253,205),outline=(255,255,255,235),width=5)
-    cx,cy,r=260,240,174
-    draw.ellipse((cx-r-10,cy-r-10,cx+r+10,cy+r+10),fill=(255,145,205,255),outline=(255,255,255,255),width=12)
+    # Soft glass panel and profile frame, matching the sample banner layout.
+    draw.rounded_rectangle((540,42,1485,470),radius=48,fill=(255,248,253,218),outline=(255,255,255,245),width=6)
+    cx,cy,r=275,256,190
+    draw.ellipse((cx-r-13,cy-r-13,cx+r+13,cy+r+13),fill=(255,112,185,255),outline=(255,255,255,255),width=12)
     avatar=None
     if avatar_bytes:
         try:
             avatar=Image.open(io.BytesIO(avatar_bytes)).convert("RGB")
             avatar=ImageOps.fit(avatar,(r*2,r*2),centering=(0.5,0.35))
-        except Exception: avatar=None
+        except Exception:
+            avatar=None
     if avatar is None:
-        avatar=Image.new("RGB",(r*2,r*2),(255,205,230))
+        avatar=Image.new("RGB",(r*2,r*2),(255,211,231))
         ad=ImageDraw.Draw(avatar)
         initials="".join(part[0] for part in (member.full_name or "M").split()[:2]).upper()
-        ad.text((r,r),initials,font=font(82,True),fill=(145,45,100),anchor="mm")
+        ad.text((r,r),initials,font=font(86,True),fill=(145,45,100),anchor="mm")
     mask=Image.new("L",(r*2,r*2),0)
     ImageDraw.Draw(mask).ellipse((0,0,r*2-1,r*2-1),fill=255)
     background.paste(avatar,(cx-r,cy-r),mask)
     draw=ImageDraw.Draw(background,"RGBA")
-    draw.ellipse((cx-r,cy-r,cx+r,cy+r),outline=(255,255,255,255),width=9)
-    heading="WELCOME TO THE GROUP" if joined else "MEMBER LEFT THE GROUP"
-    draw.text((565,82),heading,font=font(43,True),fill=(165,55,112,255))
-    name=member.full_name or "Unknown member"
-    if len(name)>34: name=name[:32]+"…"
-    username="@"+member.username if member.username else "Not set"
+    draw.ellipse((cx-r,cy-r,cx+r,cy+r),outline=(255,255,255,255),width=10)
+    heading="WELCOME TO THE GROUP" if joined else "GOODBYE, TAKE CARE!"
+    draw.text((600,78),heading,font=font(42,True),fill=(165,55,112,255))
+    draw.rounded_rectangle((600,140,1418,145),radius=3,fill=(245,155,195,220))
     details=[
-        ("NAME",name),
-        ("USERNAME",username),
+        ("NAME",(member.full_name or "Unknown member")),
+        ("USERNAME",("@"+member.username) if member.username else "Not set"),
         ("USER ID",str(member.id)),
         ("GROUP",group_name or "Group"),
     ]
-    y=160
+    y=170
     for label,value in details:
-        if len(value)>45: value=value[:43]+"…"
-        draw.text((575,y),label,font=font(18,True),fill=(190,105,150,255))
-        draw.text((760,y-3),value,font=font(24,True),fill=(80,48,70,255))
-        y+=55
-    footer=(custom_welcome or "Glad to have you here!") if joined else "Goodbye!"
-    if len(footer)>62: footer=footer[:59]+"…"
-    draw.text((575,390),footer,font=font(20),fill=(170,75,125,255))
+        value=str(value)
+        if len(value)>43: value=value[:40]+"…"
+        draw.text((610,y),label,font=font(18,True),fill=(190,105,150,255))
+        draw.text((810,y-5),value,font=font(25,True),fill=(80,48,70,255))
+        y+=57
+    footer=(custom_welcome or "Glad to have you here!") if joined else "Thanks for being part of the group!"
+    if len(footer)>58: footer=footer[:55]+"…"
+    draw.text((610,414),footer,font=font(22,True),fill=(170,75,125,255))
+    draw.text((1310,444),"DISHA",font=font(15,True),fill=(190,105,150,190))
     return background.convert("RGB")
 
 async def member_left(update, ctx):
@@ -1023,15 +1046,19 @@ async def member_left(update, ctx):
         await ctx.bot.send_photo(chat_id=chat.id,photo=output)
     except Exception:
         log.exception("Could not render member join/leave card")
-        status="WELCOME TO THE GROUP" if joined else "MEMBER LEFT"
-        username="@"+member.username if member.username else "Not set"
-        footer=(custom_welcome or "Glad to have you here!") if joined else "Goodbye!"
-        await ctx.bot.send_message(
-            chat_id=chat.id,
-            text=(f"{status}\nName: {member.full_name}\nUsername: {username}\nUser ID: {member.id}\nGroup: {chat.title or 'Group'}\n{footer}"),
-            disable_web_page_preview=True,
-        )
-
+        # Try a safe designed card instead of degrading to unformatted text.
+        try:
+            from PIL import Image, ImageDraw
+            card=Image.new("RGB",(1536,512),(255,218,235))
+            d=ImageDraw.Draw(card)
+            d.text((120,150),"WELCOME TO THE GROUP" if joined else "GOODBYE, TAKE CARE!",fill=(155,55,110))
+            d.text((120,230),member.full_name or "Unknown member",fill=(80,48,70))
+            d.text((120,290),"@"+member.username if member.username else "Username not set",fill=(80,48,70))
+            output=io.BytesIO(); card.save(output,format="JPEG",quality=90); output.seek(0)
+            output.name="member_event.jpg"
+            await ctx.bot.send_photo(chat_id=chat.id,photo=output)
+        except Exception:
+            log.exception("Could not send fallback member event image")
 def pick_image(m):
     if not m: return None
     if m.photo: return m.photo[-1].file_id,"image/jpeg"
