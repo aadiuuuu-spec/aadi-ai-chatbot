@@ -960,7 +960,7 @@ async def voice_chat_reply(update,ctx):
         caption=(msg.caption or "").lower()
         replied_to_bot=bool(msg.reply_to_message and msg.reply_to_message.from_user
                             and msg.reply_to_message.from_user.id==ctx.bot.id)
-        mentions_disha=bool(re.search(r"(?<![\\w])disha(?![\\w])",caption,re.I))
+        mentions_disha=bool(re.search(r"(?<![\w])disha(?![\w])",caption,re.I))
         username_mention=bool(BOT_USERNAME and f"@{BOT_USERNAME}".lower() in caption)
         if not (replied_to_bot or mentions_disha or username_mention):
             return
