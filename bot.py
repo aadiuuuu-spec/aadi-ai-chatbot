@@ -1920,7 +1920,7 @@ def build_application():
     for name,fn in commands.items(): app.add_handler(CommandHandler(name,fn))
     group_names=("kick","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","rules","filterlist","setrules","filters","delfilters","filterlist","addblacklist","removeblock","blocklist","approve","unapprove","setwelcome","delsetwelcome","endgame","truth","dare","tr","google","game","join","info","developer","ping","commands")
     for name in group_names: app.add_handler(CommandHandler(name,safe_group_tools))
-    app.add_handler(MessageHandler(filters.ChatType.GROUPS & filters.TEXT & filters.Regex(re.compile(r"^\\.d(?:@\\w+)?$",re.I)),safe_delete_shortcut),group=-1)
+    app.add_handler(MessageHandler(filters.ChatType.GROUPS & filters.TEXT & filters.Regex(re.compile(r"^\.d(?:@\w+)?$",re.I)),safe_delete_shortcut),group=-1)
     app.add_handler(MessageHandler(filters.ChatType.GROUPS & filters.TEXT & ~filters.COMMAND,remember_group_user),group=-1)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,group_text_tools),group=1)
     for name in ACTIONS:
