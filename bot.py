@@ -830,7 +830,7 @@ def quick_answer(text,name):
         return "Haan, main Disha hoon—AI assistant. 😌"
     if re.search(r"\b(mera|meri|mere|my)\b",t) and re.search(r"\b(naam|name)\b",t) and re.search(r"(kya|batao|bata|yaad|pata|what|know)",t):
         return f"Tumhara naam {name} hai! Dekha, yaad hai mujhe 😌"
-    if re.search(r"(tera|tumhara|tumhra|teri|aapka|your)\s*(naam|name)|(naam|name)\s*(kya|batao|bata)|tu kaun|tum kaun|who are you|kaun ho|kon ho",t):
+    if re.search(r"(?:tera|tumhara|tumhra|teri|aapka)\s+(?:naam|name)\s+(?:kya\s+hai|kya|batao|bata|yaad\s+hai)|(?:what(?:'s| is)\s+your\s+name|your\s+name\s*\?)|(?:naam|name)\s+(?:kya\s+hai|kya\s+batao)|(?:tu|tum)\s+kaun\s+hai|who\s+are\s+you|kaun\s+ho|kon\s+ho",t):
         return "Mera naam Disha hai! Naam yaad rakhna 😤"
     if re.search(r"(owner|malik|creator|developer)|kisne\s+(banaya|bnaya|banai)|who (made|created|built) you",t):
         return "Mere owner Aditya hain — @II_YUTA_II. 😌"
