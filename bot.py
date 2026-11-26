@@ -856,12 +856,13 @@ def quick_answer(text,name):
 
 TECHNICAL_IDENTITY_RE = re.compile(r"(?i)\b(openai|groq|cloud\s+servers?|servers?|hosted|hosting|deployment|deployed|gpt[- ]?oss|llama[- ]?4|api provider)\b")
 
-def clean_disha_reply(reply):
-    # Drop any generated sentence that unnecessarily exposes provider or hosting details.
+def clean_disha_reply(reply, fallback="Arre, meri reply atak gayi—ek baar phir bol na? 😅"):
+    # Remove only sentences that disclose infrastructure; never replace every turn
+    # with the same empty acknowledgement when the model's whole reply is filtered.
     parts=re.split(r"(?<=[.!?])\s+",(reply or "").strip())
     kept=[part for part in parts if part and not TECHNICAL_IDENTITY_RE.search(part)]
     cleaned=" ".join(kept).strip()
-    return cleaned or "Hmm, samajh gayi. 😌"
+    return cleaned or fallback
 
 async def ai_reply(history,name):
     if not KEY: return "Abhi mera reply system kaam nahi kar raha. Thodi der baad try karna."
@@ -873,7 +874,11 @@ async def ai_reply(history,name):
             json={"model":MODEL,"messages":[{"role":"system","content":SYSTEM+f" User ka naam {name} hai; naturally use karo. Never mention AI providers, model names, servers, or hosting unless the user explicitly asks. If asked whether you are AI, answer only that you are Disha, an AI assistant; do not append infrastructure details."},*safe_history],"max_tokens":400,"temperature":.8})
         r.raise_for_status()
         raw=(r.json()["choices"][0]["message"].get("content") or "").strip()
-        return clean_disha_reply(raw) or "Hmm, phir se bolo?"
+        recent=" ".join(m.get("content","").lower() for m in history[-8:])
+        game_context=any(term in recent for term in ("guess", "song line", "gaane ki line", "recite", "lyrics"))
+        fallback=("Arre yaar, gaane ka naam abhi pakad nahi paa rahi—ek aur clue de na 😅"
+                  if game_context else "Arre, meri reply atak gayi—ek baar phir bol na? 😅")
+        return clean_disha_reply(raw,fallback)
 
 def load_chat_history(chat_id,user_id,limit=20):
     with conn() as c:
