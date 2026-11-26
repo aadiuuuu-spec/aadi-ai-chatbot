@@ -950,6 +950,52 @@ async def chat_reply(update,ctx):
     await msg.reply_text(answer[:4000],parse_mode=None)
     await auto_reaction(ctx.bot,detect_mood(msg.text),update.effective_chat.id,msg.message_id)
 
+async def voice_chat_reply(update,ctx):
+    msg=update.effective_message
+    voice=msg.voice if msg else None
+    if not voice:
+        return
+    # In groups, only process voice notes clearly addressed to Disha.
+    if update.effective_chat.type != "private":
+        caption=(msg.caption or "").lower()
+        replied_to_bot=bool(msg.reply_to_message and msg.reply_to_message.from_user
+                            and msg.reply_to_message.from_user.id==ctx.bot.id)
+        mentions_disha=bool(re.search(r"(?<![\\w])disha(?![\\w])",caption,re.I))
+        username_mention=bool(BOT_USERNAME and f"@{BOT_USERNAME}".lower() in caption)
+        if not (replied_to_bot or mentions_disha or username_mention):
+            return
+    if voice.file_size and voice.file_size > 20 * 1024 * 1024:
+        return await msg.reply_text("Voice note thodi lambi hai—20 MB se chhoti bhejo na. 😅")
+    try:
+        tg_file=await ctx.bot.get_file(voice.file_id)
+        audio_bytes=bytes(await tg_file.download_as_bytearray())
+        async with httpx.AsyncClient(timeout=60) as client:
+            response=await client.post(
+                "https://api.groq.com/openai/v1/audio/transcriptions",
+                headers={"Authorization":f"Bearer {KEY}"},
+                data={"model":"whisper-large-v3-turbo","response_format":"json"},
+                files={"file":("voice.ogg",audio_bytes,"audio/ogg")}
+            )
+            response.raise_for_status()
+            transcript=(response.json().get("text") or "").strip()
+        if not transcript:
+            return await msg.reply_text("Voice note clear nahi sun paayi—ek baar phir bhejo na. 😅")
+    except Exception:
+        log.exception("Voice transcription failed")
+        return await msg.reply_text("Abhi voice samajhne mein dikkat aa rahi hai. Thodi der baad try karna.")
+    touch(update.effective_user)
+    name=display_name(update.effective_user)
+    history=load_chat_history(update.effective_chat.id,update.effective_user.id)
+    history.append({"role":"user","content":transcript[:3000]})
+    try:
+        await ctx.bot.send_chat_action(chat_id=update.effective_chat.id,action="typing")
+        answer=await ai_reply(history,name)
+    except Exception:
+        log.exception("Voice chat reply failed")
+        return await msg.reply_text("Tumhari voice samajh aa gayi, par reply generate nahi ho paaya. 😅")
+    save_chat_turns(update.effective_chat.id,update.effective_user.id,transcript,answer)
+    await msg.reply_text(f"🎧 <b>Maine suna:</b> {html.escape(transcript[:1200])}\n\n{html.escape(answer[:2500])}",parse_mode="HTML")
+
 async def sticker_reply(update,ctx):
     msg=update.message; st=msg.sticker if msg else None
     if not st or not st.set_name or (msg.from_user and msg.from_user.is_bot): return
@@ -1852,6 +1898,7 @@ def build_application():
     app.add_handler(CallbackQueryHandler(buttons,pattern=r"^(how|hot|actions|eco|puz|games|profile|commands|back)$"))
     app.add_handler(MessageHandler(filters.PHOTO & filters.CaptionRegex(r"^/waifu"),waifu))
     app.add_handler(MessageHandler(filters.Sticker.ALL,sticker_reply))
+    app.add_handler(MessageHandler(filters.VOICE,voice_chat_reply))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,chat_reply))
     app.add_error_handler(disha_error_handler)
     return app
