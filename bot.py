@@ -722,6 +722,40 @@ async def broadcast(update,ctx):
         except Exception: pass
     await update.message.reply_text(small_caps_html(f"📢 Broadcast sent to {sent} users."))
 
+async def delete_replied_message(update,ctx):
+    msg=update.effective_message
+    chat=update.effective_chat
+    if not msg or not chat or chat.type not in ("group","supergroup"):
+        if msg: await msg.reply_text(small_caps_html("⛔ <b>GROUP ONLY</b>\\nUse this command in a group."))
+        return
+    if not msg.reply_to_message:
+        return await msg.reply_text(small_caps_html("⚠️ <b>MESSAGE REQUIRED</b>\\nReply to the message you want to delete, then use /d or .d."),parse_mode="HTML")
+    if not await group_admin(update,ctx,require_bot_admin=True):
+        return
+    try:
+        bot_member=await ctx.bot.get_chat_member(chat.id,ctx.bot.id)
+        if not getattr(bot_member,"can_delete_messages",False):
+            return await msg.reply_text(small_caps_html("⚠️ <b>DELETE PERMISSION REQUIRED</b>\\nGive Disha the Delete Messages admin permission."),parse_mode="HTML")
+        await ctx.bot.delete_message(chat.id,msg.reply_to_message.message_id)
+        try:
+            await ctx.bot.delete_message(chat.id,msg.message_id)
+        except Exception:
+            pass
+    except Exception:
+        log.exception("Message deletion failed in chat %s",chat.id)
+        return await msg.reply_text(small_caps_html("❌ <b>DELETE FAILED</b>\\nTelegram could not delete that message. Check Disha's Delete Messages permission and message age."),parse_mode="HTML")
+
+
+async def safe_delete_shortcut(update,ctx):
+    try:
+        await delete_replied_message(update,ctx)
+    except Exception:
+        log.exception("Dot delete shortcut failed")
+        msg=update.effective_message
+        if msg:
+            await msg.reply_text(small_caps_html("❌ <b>DELETE FAILED</b>\\nCould not delete the selected message."),parse_mode="HTML")
+
+
 async def ban_one(update,ctx):
     msg=update.effective_message
     if not await group_admin(update,ctx,require_bot_admin=True):
@@ -1838,7 +1872,7 @@ async def set_disha_commands(application):
         ("truth", "ᴛʀᴜᴛʜ ǫᴜᴇsᴛɪᴏɴ"), ("dare", "sᴀғᴇ ғᴜɴ ᴅᴀʀᴇ"),
         ("tr", "ᴛʀᴜᴛʜ ᴏʀ ᴅᴀʀᴇ ʟᴀɴɢᴜᴀɢᴇ"), ("google", "sᴇᴀʀᴄʜ ᴛʜᴇ ᴡᴇʙ"),
         ("game", "sᴛᴀʀᴛ ᴀ ǫᴜɪᴄᴋ ɢᴀᴍᴇ"), ("join", "ᴊᴏɪɴ ᴛʜᴇ ɢᴀᴍᴇ"),
-        ("info", "ᴀʙᴏᴜᴛ ᴅɪsʜᴀ"), ("developer", "ᴅɪsʜᴀ ᴅᴇᴠᴇʟᴏᴘᴇʀ"), ("ping", "ᴄʜᴇᴄᴋ ʙᴏᴛ ʀᴇsᴘᴏɴsᴇ"),
+        ("info", "ᴀʙᴏᴜᴛ ᴅɪsʜᴀ"), ("developer", "ᴅɪsʜᴀ ᴅᴇᴠᴇʟᴏᴘᴇʀ"), ("ping", "ᴄʜᴇᴄᴋ ʙᴏᴛ ʀᴇsᴘᴏɴsᴇ"), ("d", "ᴅᴇʟᴇᴛᴇ ᴛʜᴇ ʀᴇᴘʟɪᴇᴅ ᴍᴇssᴀɢᴇ"),
         ("love", "sᴇɴᴅ ᴀ ғʀɪᴇɴᴅʟʏ ʟᴏᴠᴇ ʀᴇᴀᴄᴛɪᴏɴ"),
         ("hug", "sᴇɴᴅ ᴀ ғʀɪᴇɴᴅʟʏ ʜᴜɢ ʀᴇᴀᴄᴛɪᴏɴ"),
         ("miss", "sᴇɴᴅ ᴀ ᴍɪss-ʏᴏᴜ ʀᴇᴀᴄᴛɪᴏɴ"),
@@ -1878,7 +1912,7 @@ def build_application():
         "level":level_cmd,"xp":level_cmd,"rank":rank_cmd,"streak":streak_cmd,
         "leaderboard":leaderboard,"daily":daily,"work":work,"give":give,"rob":rob,
         "kill":kill,"revive":revive,"protect":protect,"top":top,"puzzle":puzzle,
-        "tictactoe":tictactoe,"waifu":waifu,"broadcast":broadcast,"ban":ban_one,
+        "tictactoe":tictactoe,"waifu":waifu,"broadcast":broadcast,"ban":ban_one,"d":delete_replied_message,
         "unban":unban_one,"banall":banall,"say":say,
         "addf":add_friend,"tag":tag_friends,"t":tag_friends,"ctag":change_friend_tag,
         "delf":delete_friend,"allf":all_friends,"friend":friend_count,"friends":friends_help,
@@ -1886,6 +1920,7 @@ def build_application():
     for name,fn in commands.items(): app.add_handler(CommandHandler(name,fn))
     group_names=("kick","mute","unmute","warn","warnings","resetwarns","promote","demote","pin","unpin","purge","rules","filterlist","setrules","filters","delfilters","filterlist","addblacklist","removeblock","blocklist","approve","unapprove","setwelcome","delsetwelcome","endgame","truth","dare","tr","google","game","join","info","developer","ping","commands")
     for name in group_names: app.add_handler(CommandHandler(name,safe_group_tools))
+    app.add_handler(MessageHandler(filters.ChatType.GROUPS & filters.TEXT & filters.Regex(re.compile(r"^\\.d(?:@\\w+)?$",re.I)),safe_delete_shortcut),group=-1)
     app.add_handler(MessageHandler(filters.ChatType.GROUPS & filters.TEXT & ~filters.COMMAND,remember_group_user),group=-1)
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND,group_text_tools),group=1)
     for name in ACTIONS:
